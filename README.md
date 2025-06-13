@@ -3,7 +3,8 @@
 This is an alpha release (v0.1.0a0). The package is functional but still under active development.
 - [x] Quantitative analysis of OpenFOAM simulation results
 - [x] Qualitative analysis of OpenFOAM simulation results
-- 
+- [x] Pre-processing for OpenFOAM simulations
+- [ ] Rebuild lost tests suite
 
 <!-- [![PyPI version](https://img.shields.io/pypi/v/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
 <!-- [![Python Version](https://img.shields.io/pypi/pyversions/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
@@ -11,16 +12,16 @@ This is an alpha release (v0.1.0a0). The package is functional but still under a
 
 ## Overview
 
-postprocess4validation is a Python-based tool designed to analyze and compare OpenFOAM simulation results with experimental data. It supports both steady and unsteady cases, handling scalar quantities. The tool computes statistical metrics and visualizes results in interactive 2D and 3D plots.
+**postprocess4validation** is a Python-based tool designed to analyze and compare OpenFOAM simulation results with experimental data. It supports both steady and unsteady cases, handling scalar quantities. The tool computes statistical metrics and visualizes results in interactive 2D and 3D plots.
 
 ## Features
 
-### Quantitative Analysis:
-- Computes statistical metrics (NMSE, Geometric Bias, Geometric Variance) based on experimental results and OpenFOAM probes sampling
+### 1. Quantitative Analysis:
+- Computes statistical metrics (Normalised Mean Squared Error, Geometric Bias, Geometric Variance) based on experimental results and OpenFOAM probes sampling
 - Compares multiple simulation setups with interactive visualization
 - Outputs statistical metrics values and representative plots for each field available
-- 2D plot Mean Geometric bias (MG) vs. Geometric variance (GV)
-- 3D plot of Relative Error (RE)
+- 2D log-log plot Mean Geometric bias (MG) vs. Geometric variance (GV)
+- 3D plot of Normalised Relative Error (NRE)
 - Interactive lens feature for detailed exploration of data points (toggle with space bar)
 - Includes stl geometry if provided
 - OpenFOAMProbesLoader defined to handle OpenFOAM probes data structure:
@@ -29,7 +30,9 @@ postprocess4validation is a Python-based tool designed to analyze and compare Op
     with <probe-file>:
         name: <field-name>
         contents:
+
         ```
+
         # x0,y0,z0,
         # x1,y1,z1,
         ...
@@ -41,7 +44,7 @@ postprocess4validation is a Python-based tool designed to analyze and compare Op
 
         ```
 
-## Qualitative analysis
+## 2. Qualitative analysis
 - Detects and plots lines and planes based on probe data and OpenFOAM lines sampling
 - Detects lines across multiple simulations and plots lines with data: a line has data if at least one simulation result is stored in it
 - It plots only planes with data in it: a plane has data if there is at least N lines with data where N can be selected by the user
@@ -53,7 +56,9 @@ postprocess4validation is a Python-based tool designed to analyze and compare Op
     with <line-file>:
         name: "line_<float>_<float>_<field0>_..._<fieldN>"
         contents:
+
         ```
+
         coord_0, field0, ... , fieldN
         coord_1, field0, ... , fieldN
         ...
@@ -67,12 +72,12 @@ Notes:
 ! the more i look in the code the more i see that it should be refactored
 
 
-## Pre-proceessing
+## 3. Pre-proceessing
 - Writes function object file for OpenFOAM simulations starting from  user-provided csv file with points info
 - Writes 'probes' and 'lines' function object file
 
 TO DO:
- it should create if requested a plot representing the 3d domain to visualize points location and lines automatically detected for post-processing
+ user should be able to create a plot representing the 3d domain to visualize points location and lines automatically detected for post-processing
 
 
 ## Installation
@@ -182,11 +187,14 @@ Standard OpenFOAM lines output format in the `postProcessing/lines` directory
 ### Quantitative package
 - **Metrics**: Statistical results saved to a CSV file
 - **Plots**: 
+
     ⇲Interactive visualization of statistical metrics (Geometric Bias vs Geometric Variance)
+
     ⇲Interactive visualization of relative error in all available points in a 3D plot
 
 ### Qualitative package
-- **Plots**: interactive visualization of all the available lines data that can be compared with the provided experiment data. All plots are grouped based on their normal component. The package plots only the planes and lines with data in it, among all planes and lines that could be visualized from the provided data-set.
+- **Plots**: 
+    ⇲ Interactive visualization of all the available lines data that can be compared with the provided experiment data. All plots are grouped based on their normal component. The package plots only the planes and lines with data in it, among all planes and lines that could be visualized from the provided data-set.
 
 ## Dependencies
 

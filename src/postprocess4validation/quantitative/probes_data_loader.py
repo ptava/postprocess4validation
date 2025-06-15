@@ -152,7 +152,7 @@ class OpenFOAMProbesLoader(DirectoryDataLoader):
     This class extends DirectoryDataLoader to handle the specific format
     of OpenFOAM probe data files.
 
-    Argumets
+    Arguments
     ---------
     file_loader (Type[FileDataLoader]): Class to load file data.
     source (str): Source of the data.

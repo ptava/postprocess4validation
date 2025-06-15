@@ -120,7 +120,7 @@ class LinesDataLoader(FileDataLoader):
 @register_loader("OpenFOAMLines")
 class OpenFOAMLinesLoader(DirectoryDataLoader):
     """
-    Load OpenFOAM lines data from a specified directory. Lines data tipically
+    Load OpenFOAM lines data from a specified directory. Lines data typically
     stored in 'postPorcessing/<subfolder>/<time_folder>/lines' directory.
     
     This class extends DirectoryDataLoader to handle the specific format

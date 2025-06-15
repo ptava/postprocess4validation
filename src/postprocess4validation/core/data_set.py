@@ -184,7 +184,7 @@ class DataSet():
             try:
                 point_field_value = point[field_name, time]
                 field_values.append(point_field_value)
-            except KeyError or TypeError:
+            except (KeyError, TypeError):
                 logger.error(f"Field {field_name} not found at point {coordinates} "
                              f"at time {time}.")
                 continue
@@ -236,7 +236,7 @@ class DataSet():
         ref_point = self[0]
         try:
             ref_times = ref_point.get_times()
-        except KeyError or TypeError or TimeConsistencyError as e:
+        except (KeyError, TypeError, TimeConsistencyError) as e:
             logger.error(
                 f"Failed to check time consistency in {self.source} dataset for "
                 f"first point: {e}"
@@ -252,7 +252,7 @@ class DataSet():
                         f"Time values of point {point} are inconsistent with "
                         f"{ref_point}. Expected: {ref_times}, Found: {point_times}"
                     )
-            except KeyError or TypeError or TimeConsistencyError as e:
+            except (KeyError, TypeError, TimeConsistencyError) as e:
                 logger.error(
                     f"Failed to check time consistency in {self.source} dataset for "
                     f"point {point}: {e}"
@@ -280,7 +280,7 @@ class DataSet():
         ref_point = self[0]
         try:
             return list(ref_point.get_times())
-        except KeyError or TypeError as e:
+        except (KeyError, TypeError) as e:
             logger.error(
                 f"Failed to get time values in {self.source} dataset for "
                 f"first point: {e}"

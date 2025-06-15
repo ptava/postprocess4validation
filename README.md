@@ -7,8 +7,17 @@ This is an alpha release (v0.1.0a0). The package is functional but still under a
 - [ ] Rebuild lost tests suite
 
 <!-- [![PyPI version](https://img.shields.io/pypi/v/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
+
 <!-- [![Python Version](https://img.shields.io/pypi/pyversions/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
 <!-- [![License](https://img.shields.io/github/license/ptava/postprocess4validation.svg)](https://github.com/ptava/postProcess4Validation/blob/main/LICENSE) -->
+
+Notes:
+
+⭓ there are a lot of solutions/workarounds that seems to be stupidly complicated
+
+⭓ data loader implementation for both quantitative and qualitative packages is bad
+
+⭓ the more i look in the code the more i see that it should be refactored
 
 ## Overview
 
@@ -17,21 +26,18 @@ This is an alpha release (v0.1.0a0). The package is functional but still under a
 ## Features
 
 ### 1. Quantitative Analysis:
-- Computes statistical metrics (Normalised Mean Squared Error, Geometric Bias, Geometric Variance) based on experimental results and OpenFOAM probes sampling
+- Computes statistical metrics such as Normalised Mean Squared Error (NMSE), Geometric Mean Bias (MG), and Geometric Variance (GV) based on experimental results and OpenFOAM probes sampling
 - Compares multiple simulation setups with interactive visualization
 - Outputs statistical metrics values and representative plots for each field available
-- 2D log-log plot Mean Geometric bias (MG) vs. Geometric variance (GV)
+- 2D log-log plot MG vs. GV
 - 3D plot of Normalised Relative Error (NRE)
 - Interactive lens feature for detailed exploration of data points (toggle with space bar)
 - Includes stl geometry if provided
 - OpenFOAMProbesLoader defined to handle OpenFOAM probes data structure:
-    "<case-folder>/postProcessing/<probes-folder>/<time>/<probe-file>"
-- ProbesLoader defined to handle csv probes data:
-    with <probe-file>:
-        name: <field-name>
-        contents:
+    "\<case-folder\>/postProcessing/\<probes-folder\>/\<time\>/\<probe-file\>"
+- ProbesLoader defined to handle csv probes data with \<probe-file\>:
 
-        ```
+        file name: "<field>"
 
         # x0,y0,z0,
         # x1,y1,z1,
@@ -42,7 +48,47 @@ This is an alpha release (v0.1.0a0). The package is functional but still under a
         ...
         tM, field0, field1, ..., fieldN
 
-        ```
+Quantitative comparison of experimental and model results are performed using the following statistical performance measures, where $P_i$ is the model prediction, and $O_i$ is the observed value:
+
+#### <u>Geometric mean bias</u> ($MG$)
+
+This is the logarithmic measure of the mean relative bias.  
+- Strongly influenced by extremely low observations and predictions.  
+- Less sensitive to infrequent high concentrations than the fractional bias.  
+- Indicates only systematic errors.
+
+For an ideal model, $MG = 1$.
+
+$$
+MG = \exp\left( \frac{1}{n} \sum_{i=1}^n \ln O_i - \frac{1}{n} \sum_{i=1}^n \ln P_i \right)
+$$
+
+#### <u>Geometric variance</u> ($VG$)
+
+A metric like the NMSE that shows the scatter in the data, including both systematic and random errors.  
+For an ideal model prediction, $VG = 1$.
+
+$$
+VG = \exp\left( \frac{1}{n} \sum_{i=1}^n \left( \ln O_i - \ln P_i \right)^2 \right)
+$$
+
+#### <u>Normalised mean square error</u> ($NMSE$)
+
+A measure of scatter that includes both systematic and random errors.  
+- For an ideal model prediction, $NMSE = 0$  
+- Not meaningful for variables that can be both positive and negative (e.g., velocity components).
+
+$$
+NMSE = \frac{1}{n} \sum_{i=1}^n \frac{(O_i - P_i)^2}{\overline{O} \, \overline{P}}
+$$
+
+#### <u>Normalised relative error</u> ($NRE_i$)
+
+A local measure of the relative difference between predicted and observed values, computed at each spatial point $i$.  Used for visualisation purposes (e.g. 3D error plots).  
+
+$$
+    NRE_i = \left| \frac{P_i - O_i}{O_i} \right|
+$$
 
 ## 2. Qualitative analysis
 - Detects and plots lines and planes based on probe data and OpenFOAM lines sampling
@@ -51,25 +97,16 @@ This is an alpha release (v0.1.0a0). The package is functional but still under a
 - Interactive scaling parameter to improve visualization run-time
 - Includes stl geometry if provided, showing geometry intersections with the plotted planes
 - OpenFOAMLinesLoader to handle OpenFOAM lines data structure:
-    "<case-folder>/postProcessing/<lines-subfolder>/<time>/<line-file>"
+    "\<case-folder\>/postProcessing/\<lines-subfolder\>/\<time\>/\<line-file\>"
 - LinesLoader to handle raw lines data:
     with <line-file>:
-        name: "line_<float>_<float>_<field0>_..._<fieldN>"
-        contents:
 
-        ```
+        file name: "line_<float>_<float>_<field0>_..._<fieldN>"
 
         coord_0, field0, ... , fieldN
         coord_1, field0, ... , fieldN
         ...
         coord_N, field0, ... , fieldN
-
-        ``` 
-
-Notes:
-! there are a lot of solutions/workarounds that seems to be stupidly complicated
-! data loader implementation for both quantitative and qualitative packages is wrong/bad
-! the more i look in the code the more i see that it should be refactored
 
 
 ## 3. Pre-proceessing

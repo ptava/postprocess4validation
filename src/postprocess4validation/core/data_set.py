@@ -23,7 +23,7 @@ class DataSet():
         source: str,
         points: Optional[List[PointData]] = None,
         coords: Optional[Dict[str, Optional[str]]] = None,
-        fields: Optional[Dict[str, Optional[str]]] = None
+        fields: Optional[Dict[str, str]] = None
     ):
         """
         Initializes the dataset with a list of PointData objects.
@@ -427,10 +427,15 @@ class DataSet():
         self._point_index.setdefault(point.coordinates, point)
 
     @property
-    def fields(self) -> Dict[str, Optional[str]]:
+    def fields(self) -> Dict[str, str]:
         """
         Returns the list of field names in the dataset.
         """
+        if not self._fields:
+            fields_set = set(field for point in self.points for field in point.fields)
+            self._fields = {
+                field: '' for field in fields_set
+            }
         return self._fields
 
     @property

@@ -133,30 +133,28 @@ class PointData:
             raise ValueError(f"Point at {self.coordinates} has no field data.")
 
         if field_name is not None:
-            if field_name not in self.fields:
-                raise KeyError(f"Field '{field_name}' not found at point {self.coordinates}.")
-            return self.fields[field_name].keys()
-        else:
-            # Check consistency across all fields
-            field_iterator = iter(self.fields.values())
             try:
-                ref_times = set(next(field_iterator).keys())
-            except StopIteration:
-                 raise ValueError(f"Point at {self.coordinates} has no field data.") 
+                # If field_name is provided, return its time steps
+                return self.fields[field_name].keys()
+            except KeyError:
+                raise KeyError(f"Field '{field_name}' not found at point {self.coordinates}.")
 
-            for i, field_data in enumerate(field_iterator):
-                current_times = set(field_data.keys())
-                if current_times != ref_times:
-                    field_names = list(self.fields.keys())
-                    ref_field_name = field_names[0]
-                    current_field_name = field_names[i + 1]
-                    raise PointTimeConsistencyError(
-                        f"Inconsistent time steps at point {self.coordinates}. "
-                        f"Field '{ref_field_name}' times: {ref_times}. "
-                        f"Field '{current_field_name}' times: {current_times}."
-                    )
-            # If loop completes without error, times are consistent
-            return self.fields[list(self.fields.keys())[0]].keys()
+        # If field_name is None, check consistency across all fields
+        items = list(self.fields.items())
+        ref_name, ref_data = items[0]
+        ref_times = set(ref_data.keys())
+
+        for current_field_name, current_data in items[1:]:
+            current_times = set(current_data.keys())
+            if current_times != ref_times:
+                raise PointTimeConsistencyError(
+                    f"Inconsistent time steps at point {self.coordinates}.\n"
+                    f"Field '{ref_name}' times: {sorted(ref_times)}\n"
+                    f"Field '{current_field_name}' times: {sorted(current_times)}"
+                )
+
+        # If loop completes without error, times are consistent
+        return ref_data.keys()
 
     # --- Dunder methods --- 
 

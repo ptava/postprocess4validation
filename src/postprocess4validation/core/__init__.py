@@ -10,7 +10,12 @@ from .data_set import DataSet
 from .line import Line
 from .plane import Plane
 from .plane_set import PlaneSet
-from .exceptions import OpenFOAMError, NoTimeFolderError
+from .exceptions import (
+    OpenFOAMError,
+    NoTimeFolderError,
+    PointDataError,
+    DataSetError,
+)
 from .openfoam_utils import (
     find_postProcessing,
     get_time_subfolders,
@@ -49,6 +54,8 @@ __all__ = [
     'configure_logger',
     'OpenFOAMError',
     'NoTimeFolderError',
+    'PointDataError',
+    'DataSetError',
     'PointData',
     'DataSet',
     'Line',

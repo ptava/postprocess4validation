@@ -68,7 +68,7 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
-        "--output-folder",
+        "--output-dir", "-o",
         type=dir_path,
         required=False,
         default=FilePaths.OUTPUT_FOLDER,

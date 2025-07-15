@@ -55,7 +55,7 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
-        "--output-dir",
+        "--output-dir", "-o",
         type=dir_path,
         required=False,
         default=Info.OUTPUT_DIR,
@@ -97,14 +97,14 @@ def parser() -> Namespace:
     )
     
     parser.add_argument(
-        "--save-only",
+        "--save-only", "-s",
         action="store_true",
         default=False,
         help="Save plot to file without displaying it."
     )
     
     parser.add_argument(
-        "--verbose",
+        "--verbose", "-v",
         action="store_true",
         default=False,
         help="Enable INFO-level logging output"

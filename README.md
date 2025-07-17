@@ -6,27 +6,23 @@ This is an alpha release (v0.1.0a0). The package is functional but still under a
 - [x] Pre-processing for OpenFOAM simulations
 - [ ] Rebuild lost tests suite
 
-<!-- [![PyPI version](https://img.shields.io/pypi/v/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
+## Disclaimer
+This Python package is a personal tool developed to automate OpenFOAM computational model validation against experimental data. Given that the project evolved from individual experimentation, many design choices, implementations, and workarounds may appear unnecessarily complex or inefficient. You will encounter parts of the codebase -particularly related to data loading, storage, and plot generation - that clearly need refactoring and optimization (refer to open issues for details)
 
+Be aware that certain solutions may seem overly complicated or suboptimal. Contributions, suggestions, and improvements are welcome; however, please understand that the original intent was personal use, and the current state of the code reflects that fact.
+
+<!-- [![PyPI version](https://img.shields.io/pypi/v/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
 <!-- [![Python Version](https://img.shields.io/pypi/pyversions/postprocess4validation.svg)](https://pypi.org/project/postProcess4Validation/) -->
 <!-- [![License](https://img.shields.io/github/license/ptava/postprocess4validation.svg)](https://github.com/ptava/postProcess4Validation/blob/main/LICENSE) -->
 
-Notes:
-
-⭓ there are a lot of solutions/workarounds that seems to be stupidly complicated
-
-⭓ data loader implementation for both quantitative and qualitative packages is bad
-
-⭓ the more i look in the code the more i see that it should be refactored
-
 ## Overview
 
-**postprocess4validation** is a Python-based tool designed to analyze and compare OpenFOAM simulation results with experimental data. It supports both steady and unsteady cases, handling scalar quantities. The tool computes statistical metrics and visualizes results in interactive 2D and 3D plots.
+**postprocess4validation** is a Python-based tool designed to analyze and compare OpenFOAM simulation results with experimental data. It supports both steady and unsteady cases, handling scalar quantities only. The tool computes statistical metrics and visualizes results in interactive 2D and 3D plots.
 
 ## Features
 
 ### 1. Quantitative Analysis:
-- Computes statistical metrics such as Normalised Mean Squared Error (NMSE), Geometric Mean Bias (MG), and Geometric Variance (GV) based on experimental results and OpenFOAM probes sampling
+- Computes statistical metrics such as Normalised Mean Squared Error (NMSE), Geometric Mean Bias (MG), and Geometric Variance (GV) based on point-wise experimental data and OpenFOAM probes sampling
 - Compares multiple simulation setups with interactive visualization
 - Outputs statistical metrics values and representative plots for each field available
 - 2D log-log plot MG vs. GV
@@ -91,7 +87,7 @@ $$
 $$
 
 ## 2. Qualitative analysis
-- Detects and plots lines and planes based on probe data and OpenFOAM lines sampling
+- Detects and plots lines and planes based on point-wise experimental data and OpenFOAM lines sampling
 - Detects lines across multiple simulations and plots lines with data: a line has data if at least one simulation result is stored in it
 - It plots only planes with data in it: a plane has data if there is at least N lines with data where N can be selected by the user
 - Interactive scaling parameter to improve visualization run-time

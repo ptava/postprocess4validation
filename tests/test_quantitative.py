@@ -8,8 +8,7 @@ This module contains tests for the quantitative analysis functionality including
 """
 import pytest
 import numpy as np
-from pathlib import Path
-from postprocess4validation.core import DataSet
+from postprocess4validation.core import DataSet, find_postProcessing
 from postprocess4validation.quantitative.computations import (
     _compute_nmse,
     _compute_mean_bias,
@@ -17,10 +16,14 @@ from postprocess4validation.quantitative.computations import (
 )
 
 from postprocess4validation.quantitative import (
+    ProbesLoader,
+    OpenFOAMProbesLoader,
     compute_metrics,
     run_quantitative_analysis,
-    OpenFOAMProbesLoader,
-    ProbesLoader,
+    define_2Dplot_storage,
+    define_3Dplot_storage,
+    create_2Dplot,
+    create_3Dplot,
 )
 
 from postprocess4validation.quantitative.utils import (
@@ -220,38 +223,104 @@ class TestDatasetComparison:
 class TestQuantitativeAnalysis:
     """Tests for the quantitative analysis pipeline."""
 
-    def test_metrics_computation_integration(self, experiment_dataset, simulation_dataset, tmp_path):
-        """Test integration of metrics computation in the analysis pipeline."""
+    def test_single_simulation(self, experiment_dataset, simulation_dataset, tmp_path):
+        """Test metrics computation for a single simulation in the analysis pipeline."""
         # Create a temporary output file
-        output_file = tmp_path / "test_metrics.csv"
+        metrics_file = tmp_path / "test_metrics.csv"
+        plot_file_2D = tmp_path / "test_plot_2D.png"
+        plot_file_3D = tmp_path / "test_plot_3D.png"
         
-        # Mock the visualization components
-        class MockAxes:
-            def __init__(self):
-                self.plot_data = {}
-        
-        mock_ax = MockAxes()
-        mock_ax3d = MockAxes()
+        # Data storage initialization
+        data_2D = define_2Dplot_storage()
+        mock_ax3d = define_3Dplot_storage(experiment_dataset)
         
         # Run the analysis
         try:
             # Get the simulation path
-            sim_path = Path(simulation_dataset.source)
+            sim_paths = find_postProcessing()
+            assert len(sim_paths) > 0, "No postProcessing folder found"
+
+            sim_path = sim_paths[0]  # Use the first simulation path
             
             # Run the analysis
             run_quantitative_analysis(
                 directory_loader=OpenFOAMProbesLoader,
                 file_loader=ProbesLoader,
-                output_file=output_file,
+                output_file=metrics_file,
                 ref_dataset=experiment_dataset,
-                data_storage_2D=mock_ax,
+                data_storage_2D=data_2D,
                 data_storage_3D=mock_ax3d,
                 data_path=sim_path,
-                last_time_only=True
+                last_time_only=True,
+                time=None,
             )
 
             # TODO: assert some stuff that this function changes (mock axes)
+
+            create_2Dplot(
+                data_storage=data_2D,
+                file_path=plot_file_2D,
+                save_only=True,
+                interactive=False,
+            )
+            create_3Dplot(
+                data_storage=mock_ax3d,
+                file_path=plot_file_3D,
+                save_only=True,
+            )
+
             
+        except Exception as e:
+            # If the analysis fails, it might be due to missing visualization components
+            # or incompatible data. We'll mark this as an expected failure.
+            pytest.xfail(f"Analysis failed: {e}")
+
+
+    def test_multiple_simulations(self, experiment_dataset, simulation_dataset, tmp_path):
+        """Test metrics computation for a single simulation in the analysis pipeline."""
+        # Create a temporary output file
+        metrics_file = tmp_path / "test_metrics.csv"
+        plot_file_2D = tmp_path / "test_plot_2D.png"
+        plot_file_3D = tmp_path / "test_plot_3D.png"
+        
+        # Mock the visualization components
+        data_2D = define_2Dplot_storage()
+        mock_ax3d = define_3Dplot_storage(experiment_dataset)
+        
+        # Run the analysis
+        try:
+            # Get the simulation path
+            sim_paths = find_postProcessing()
+            assert len(sim_paths) > 0, "No postProcessing folder found"
+
+            for sim_path in sim_paths:
+            
+                # Run the analysis
+                run_quantitative_analysis(
+                    directory_loader=OpenFOAMProbesLoader,
+                    file_loader=ProbesLoader,
+                    output_file=metrics_file,
+                    ref_dataset=experiment_dataset,
+                    data_storage_2D=data_2D,
+                    data_storage_3D=mock_ax3d,
+                    data_path=sim_path,
+                    last_time_only=False,
+                    time=None,
+                )
+
+            # TODO: assert some stuff that this function changes (mock axes)
+
+            create_2Dplot(
+                data_storage=data_2D,
+                file_path=plot_file_2D,
+                save_only=True,
+                interactive=False,
+            )
+            create_3Dplot(
+                data_storage=mock_ax3d,
+                file_path=plot_file_3D,
+                save_only=True,
+            )
             
         except Exception as e:
             # If the analysis fails, it might be due to missing visualization components

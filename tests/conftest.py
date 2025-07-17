@@ -24,7 +24,7 @@ from postprocess4validation.quantitative import (
 TEST_DIR = Path(__file__).parent
 STATIC_DIR = TEST_DIR / "static"
 EXPERIMENT_DATA_DIR = STATIC_DIR / "experiment_data"
-SIMULATION_DATA_DIR = STATIC_DIR / "simulation_data" / "simulation_data"
+SIMULATION_DATA_DIR = STATIC_DIR / "simulation_data" 
 
 
 @pytest.fixture(scope="session")

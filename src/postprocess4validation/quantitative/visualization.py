@@ -202,7 +202,7 @@ def create_2Dplot(
     linewidth: float = PlotConstants.LINEWIDTH
 ) -> None:
     """
-    Create a 2D scatter plot in a figure, formatting it, add scatter points, 
+    Create a 2D scatter plot in a figure, formatting it, add scatter points,
     show if required and save plot.
 
     Parameters
@@ -211,13 +211,17 @@ def create_2Dplot(
     file_path (Path): path to save the plot
     save_only (bool): if True, save the plot without showing it
     interactive (bool): if True, add an interactive lens to the plot
-    plot_margin (float, optional): margin factor for axis limits, by default 
+    plot_margin (float, optional): margin factor for axis limits, by default
         PlotConstants.MARGIN
     linewidth (float, optional): line width for reference lines, by default
         PlotConstants.LINEWIDTH
 
     """
-    def _format_plot(all_mg_vals: ndarray, all_vg_vals: ndarray, ax: Axes) -> None:
+    def _format_plot(
+            all_mg_vals: ndarray,
+            all_vg_vals: ndarray,
+            ax: Axes
+    ) -> None:
         # Set log scales
         ax.set_xscale('log')  # type: ignore[arg-type]
         ax.set_yscale('log')  # type: ignore[arg-type]
@@ -301,8 +305,14 @@ def create_2Dplot(
 
         # Field markers: each field gets a black marker
         for f_name in fields:
-            field_handle = Line2D([], [], color='black', marker=marker_map[f_name],
-                                  linestyle='None', markersize=7)
+            field_handle = Line2D(
+                [],
+                [],
+                color='black',
+                marker=marker_map[f_name],
+                linestyle='None',
+                markersize=7
+            )
             legend_entries.append(field_handle)
             legend_labels.append(f_name)
 
@@ -416,7 +426,8 @@ def find_matching_fields(
     -------
     list[str]: List of field names that match the provided name.
     """
-    # Basic pattern matches everything contains 'name' (both lower and upper case)
+    # Basic pattern matches everything contains 'name' 
+    # (both lower and upper case)
     _BASIC_PATTERN = compile(rf".*{name}.*", IGNORECASE)
 
     # Get all fields in the dataset (bad practice)
@@ -451,7 +462,9 @@ def define_3Dplot_storage(
         'fields': [],               # names of plotted fields
         'fields_values': [],       # field values for each field
         'labels': [],               # labels for each field
-        # TODO: why? replace the usage of all coordinates by using pointData methods
+        'sources': [],               # source of the data (e.g., simulation name)
+        # TODO: why? replace the usage of all coordinates by using pointData 
+        # methods
         'coordinates': safe_array_conversion(dataset.get_all_coordinates()),
     }
 
@@ -489,8 +502,12 @@ def store_3Dplot_data(
                 continue
 
             # Store scatter objects and tags for future operations
+            label = f"{field} @ {time}"
             data_storage['labels'].append(
-                f'{field} @ {time}'
+                label
+            )
+            data_storage['sources'].append(
+                dataset.source
             )
             data_storage['fields_values'].append(
                 safe_array_conversion(field_values)
@@ -535,8 +552,11 @@ def create_3Dplot(
             logger.warning(f"Could not load STL: {e}")
 
     def _format_3d_axes(ax3d: Axes, scatter, label: str, values: ndarray,
-                        coords: ndarray) -> None:
+                        coords: ndarray, title: str) -> None:
         """ Format the 3D axes with labels, limits, and colorbar. """
+
+        ax3d.set_title(title, fontsize=14,
+                       fontname='Monospace', color='tab:blue')
 
         ax3d.set_xlabel("X")
         ax3d.set_ylabel("Y")
@@ -584,8 +604,10 @@ def create_3Dplot(
     def _plot_figure(
             slabs_group,
             labels_group,
+            sources_group,
             idx,
             coords,
+            field_minmax,
     ) -> None:
         rows = ceil(len(slabs_group) / ncols)
         fig = plt.figure(
@@ -597,18 +619,27 @@ def create_3Dplot(
 
         grid = GridSpec(rows, ncols, figure=fig)
 
-        for i, (values, label) in enumerate(zip(slabs_group, labels_group)):
+        for i, (values, label, source) in enumerate(
+                zip(slabs_group, labels_group, sources_group)):
+            # Get position in the grid and create 3D subplot
             row, col = divmod(i, ncols)
             ax3d = fig.add_subplot(grid[row, col], projection="3d")
 
+            # Retrieve the min and max values for the color scale
+            field_name = label.split("@")[0].strip() # BAD: Linked to how is stored
+            vmin, vmax = field_minmax.get(field_name, (None, None))
+
+            # Add scatter object to the 3D axes
             scatter = ax3d.scatter(
                 coords[:, 0], coords[:, 1], coords[:, 2],
                 c=values,
                 cmap=PlotConstants.PLOT3D_CMAP,
-                marker="o"
+                marker="o",
+                vmin=vmin,
+                vmax=vmax,
             )
 
-            _format_3d_axes(ax3d, scatter, label, values, coords)
+            _format_3d_axes(ax3d, scatter, label, values, coords, source)
 
             if geometry:
                 _add_geometry(ax3d, geometry)
@@ -639,9 +670,23 @@ def create_3Dplot(
     coords: ndarray = data_storage["coordinates"]
     labels: List[str] = data_storage["labels"]
     slabs: List[ndarray] = data_storage["fields_values"]
-    n_subplots = len(slabs)
+    sources: List[str] = data_storage["sources"]
+
+    # Compute global vmin/vmax per field
+    field_minmax = {}
+    for lbl, vals in zip(labels, slabs):
+        field = lbl.split("@")[0].strip() #BAD
+        cur_min = float(np_min(vals))
+        cur_max = float(np_max(vals))
+        if field in field_minmax:
+            prev_min, prev_max = field_minmax[field]
+            field_minmax[field] = (
+                min(prev_min, cur_min), max(prev_max, cur_max))
+        else:
+            field_minmax[field] = (cur_min, cur_max)
 
     # Check if there are any subplots to create
+    n_subplots = len(slabs)
     if n_subplots == 0:
         logger.error("No subplots to create.")
         raise ValueError("No subplots to create.")
@@ -658,4 +703,12 @@ def create_3Dplot(
     for i in range(0, n_subplots, subplots_per_fig):
         group_slabs = slabs[i:i + subplots_per_fig]
         group_labels = labels[i:i + subplots_per_fig]
-        _plot_figure(group_slabs, group_labels, i // subplots_per_fig, coords)
+        group_sources = sources[i:i + subplots_per_fig]
+        _plot_figure(
+            group_slabs,
+            group_labels,
+            group_sources,
+            i // subplots_per_fig,
+            coords,
+            field_minmax,
+        )

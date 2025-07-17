@@ -120,6 +120,10 @@ TO DO:
 <!-- pip install postprocess4validation -->
 <!-- ``` -->
 
+### From git
+```bash
+pip install git+https://github.com/ptava/postprocess4validation.git@main#egg=postprocess4validation
+
 ### From Source
 ```bash
 git clone https://github.com/ptava/postprocess4validation.git

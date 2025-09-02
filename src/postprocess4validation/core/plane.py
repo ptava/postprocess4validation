@@ -200,8 +200,8 @@ class Plane(Iterable[Line]):
         ax: Axes,
         field_name: str,
         last_timestep_only: bool,
-        line_marker: str = '-',
-        scale: float = 1.0,
+        scale: float,
+        line_marker: str = '.',
         possible_characters: Set = Info.SUPPORTED_CHARACTERS
     ) -> None:
         """
@@ -297,7 +297,7 @@ class Plane(Iterable[Line]):
             # Add line handles for each unique color and label
             for color, label in legend_data.items():
                 color_handle = Line2D(
-                    [], [], color=color, linestyle=line_marker
+                    [], [], color=color, linestyle='dotted'
                 )
                 legend_handles.append(color_handle)
                 legend_labels.append(label)

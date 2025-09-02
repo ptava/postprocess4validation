@@ -225,7 +225,7 @@ class Line:
                     ax: Axes,
                     field_name: str, 
                     last_time_only: bool,
-                    line_marker: str = '-',
+                    line_marker: str = '.',
                     scale: float = 1.0) -> None:
         """ Plot the data of the line on the given axes applying scale on first
         axis and using the last time step only if specified. """
@@ -254,11 +254,11 @@ class Line:
                 current_color = get_distinct_color(color_counter)
                 x_values = self.line_position + current_value[:, 1] * scale
                 y_values = current_value[:, 0]
-                ax.plot(
+                ax.scatter(
                     x_values,
                     y_values,
                     color=current_color,
-                    linestyle=line_marker,
+                    marker=line_marker,
                 )
                 self.add_color(current_color)
                 self.add_label(str(time) if not last_time_only else source)

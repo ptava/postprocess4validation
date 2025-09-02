@@ -36,6 +36,43 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--scale",
+        default=DefaultValues.FIELD_SCALE,
+        type=float,
+        help=(
+            "Specify the scale factor to apply to the field data.\n"
+            f"Default is {DefaultValues.FIELD_SCALE}."
+        ),
+    )
+
+    parser.add_argument(
+        "--xlim",
+        type=float,
+        nargs=2,
+        default=DefaultValues.XLIM,
+        metavar=('XMIN', 'XMAX'),
+        help="Specify the x-axis limits as two floats: min max.\n",
+    )
+
+    parser.add_argument(
+        "--ylim",
+        type=float,
+        nargs=2,
+        default=DefaultValues.YLIM,
+        metavar=('YMIN', 'YMAX'),
+        help="Specify the y-axis limits as two floats: min max.\n",
+    )
+
+    parser.add_argument(
+        "--zlim",
+        type=float,
+        nargs=2,
+        default=DefaultValues.ZLIM,
+        metavar=('ZMIN', 'ZMAX'),
+        help="Specify the z-axis limits as two floats: min max.\n",
+    )
+
+    parser.add_argument(
         "--single",
         type=dir_path,
         required=False,
@@ -71,7 +108,7 @@ def parser() -> Namespace:
         "--output-dir", "-o",
         type=dir_path,
         required=False,
-        default=FilePaths.OUTPUT_FOLDER,
+        default=FilePaths.OUTPUT_DIR,
         help=(
             "Specify relative path to output directory.\n"
             "Default is current directory."

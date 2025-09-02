@@ -1,4 +1,4 @@
-from typing import cast, List, Optional
+from typing import cast, List, Optional, Tuple
 from math import ceil
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
@@ -9,7 +9,6 @@ from numpy.typing import NDArray
 from os import environ
 from pathlib import Path
 from trimesh import load_mesh
-from trimesh.path.traversal import discretize_path
 import numpy as np
 
 from ..core import (
@@ -33,7 +32,11 @@ def create_plots(
     plot_vsize: float = PlotConstants.PLOT_SIZE[1],
     max_columns: int = PlotConstants.FIGURE_MAXCOLUMNS,
     max_height: float = PlotConstants.FIGURE_MAXHEIGHT,
-    min_lines_per_plane: int = DefaultValues.MIN_LINES_PER_PLANE
+    min_lines_per_plane: int = DefaultValues.MIN_LINES_PER_PLANE,
+    scale_factor: float = DefaultValues.FIELD_SCALE,
+    x_limit: Optional[Tuple[float, float]] = DefaultValues.XLIM,
+    y_limit: Optional[Tuple[float, float]] = DefaultValues.YLIM,
+    z_limit: Optional[Tuple[float, float]] = DefaultValues.ZLIM,
 
 ) -> None:
     """
@@ -81,6 +84,10 @@ def create_plots(
             plot_vsize=plot_vsize,
             max_columns=max_columns,
             max_height=max_height,
+            scale_factor=scale_factor,
+            x_limit=x_limit,
+            y_limit=y_limit,
+            z_limit=z_limit,
         )
 
 
@@ -172,6 +179,40 @@ def _add_geometry(
     except Exception as e:
         logger.warning(f"Could not load or process STL {_path}: {e}")
 
+def _set_limits(
+    ax: Axes,
+    plane_normal: Tuple[float, float, float],
+    xlimit: Optional[Tuple[float, float]],
+    ylimit: Optional[Tuple[float, float]],
+    zlimit: Optional[Tuple[float, float]],
+) -> None:
+    """
+    Set 2D Axes limits based on which axis the slicing plane is normal to.
+
+    Mapping (dominant component of plane_normal):
+      - (0, 0, 1) -> XY plane:   xlim <-- xlimit, ylim <-- ylimit
+      - (0, 1, 0) -> XZ plane:   xlim <-- xlimit, ylim <-- zlimit
+      - (1, 0, 0) -> YZ plane:   xlim <-- ylimit, ylim <-- zlimit
+
+    Any `None` limit is ignored (current limits preserved).
+    """
+    # Find the index of the dominant component
+    k = int(np.argmax(plane_normal))
+    match k:
+        case 0:
+            x_src, y_src = ylimit, zlimit
+        case 1:
+            x_src, y_src = xlimit, zlimit
+        case 2:
+            x_src, y_src = xlimit, ylimit
+        case _:
+            raise ValueError(f"Invalid plane normal vector: {plane_normal}")
+
+    if x_src:
+        ax.set_xlim(x_src)
+    if y_src:
+        ax.set_ylim(y_src)
+
 
 def _plot_plane_set(
     plane_set: PlaneSet,
@@ -180,6 +221,10 @@ def _plot_plane_set(
     n_fields: int,
     last_timestep_only: bool,
     geometry: Optional[Path],
+    scale: float,
+    xlimit: Optional[Tuple[float, float]],
+    ylimit: Optional[Tuple[float, float]],
+    zlimit: Optional[Tuple[float, float]]
 ) -> None:
     for i_plane, plane in enumerate(plane_set):
 
@@ -193,12 +238,15 @@ def _plot_plane_set(
                     f"Index {idx} exceeds axes length {len(axes)}."
                 )
                 continue    # Skip if index exceeds axes length
+            current_ax=axes[idx]
             plane.add_to_plot(
-                ax=axes[idx],
+                ax=current_ax,
                 field_name=field_name,
                 last_timestep_only=last_timestep_only,
-                scale=DefaultValues.FIELD_SCALE,
+                scale=scale
             )
+
+            _set_limits(current_ax, plane.normal, xlimit, ylimit, zlimit)
 
             if geometry:
                 _add_geometry(axes[idx], geometry, plane)
@@ -215,6 +263,10 @@ def _plot_tagged_plane_set(
     plot_vsize: float,
     max_columns: int,
     max_height: float,
+    scale_factor: float,
+    x_limit: Optional[Tuple[float, float]],
+    y_limit: Optional[Tuple[float, float]],
+    z_limit: Optional[Tuple[float, float]],
 ) -> None:
     n_fields = len(plane_set.fields)
     total_subplots = len(plane_set) * n_fields
@@ -250,6 +302,10 @@ def _plot_tagged_plane_set(
             n_fields=n_fields,
             last_timestep_only=last_timestep_only,
             geometry=geometry,
+            scale=scale_factor,
+            xlimit=x_limit,
+            ylimit=y_limit,
+            zlimit=z_limit,
         )
 
         if interactive:

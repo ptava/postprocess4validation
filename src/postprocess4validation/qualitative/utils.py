@@ -7,7 +7,7 @@ class FilePaths:
     """Default file and directory paths."""
     _current_dir = Path.cwd()
     PATH_TO_EXP_FILE = _current_dir / "expData.csv"
-    OUTPUT_FOLDER = _current_dir
+    OUTPUT_DIR = _current_dir
     LINES_SUBFOLDER = "lines"
     PLOT_FILENAME = "plot_lines.png"
 
@@ -20,5 +20,8 @@ class PlotConstants:
 class DefaultValues:
     FIELD_SCALE = 0.005
     MIN_LINES_PER_PLANE = 1
+    XLIM = None
+    YLIM = None
+    ZLIM = None
 
 

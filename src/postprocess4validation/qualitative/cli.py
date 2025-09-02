@@ -48,7 +48,7 @@ def main() -> int:
         planes = experiment_dataset.points_to_planes()
 
         # --- Initialise output file --- #
-        plot_file = args.output_folder / FilePaths.PLOT_FILENAME
+        plot_file = args.output_dir / FilePaths.PLOT_FILENAME
         plot_flag = False
 
         # --- Collect paths of data files --- #
@@ -85,7 +85,11 @@ def main() -> int:
             last_timestep_only=plot_flag,
             interactive=args.interactive,
             geometry=args.stl,
-            min_lines_per_plane=args.min_lines
+            min_lines_per_plane=args.min_lines,
+            scale_factor=args.scale,
+            x_limit=args.xlim,
+            y_limit=args.ylim,
+            z_limit=args.zlim,
         )
 
         logger.info("Processing completed successfully")

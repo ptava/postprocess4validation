@@ -5,6 +5,7 @@ from ..core import (
     PlaneSet,
     DirectoryDataLoader,
     FileDataLoader,
+    OpenFOAMError,
 )
 from .utils import logger, FilePaths
 from .lines_data_loader import OpenFOAMLinesLoader
@@ -77,4 +78,7 @@ def load_data_into_planeset(
 
     # Mapping data files into planes
     # BAD practice: This affects the plane_set passed in
-    loader.load(data_path)
+    try:
+        loader.load(data_path)
+    except OpenFOAMError as e:
+        logger.warning(f"Problem loading data from {data_path}: {e}")

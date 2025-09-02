@@ -167,6 +167,12 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
         processing_folder = validated_path / self.subfolder
         logger.info(f"Finding OpenFOAM lines data in {validated_path}")
 
+        if not processing_folder.exists():
+            raise OpenFOAMError(
+                f"Lines subfolder '{self.subfolder}' not found in "
+                f"{validated_path}"
+            )
+
         # Get all subfolders names in the specified directory
         times = self.get_dirs(processing_folder)
 

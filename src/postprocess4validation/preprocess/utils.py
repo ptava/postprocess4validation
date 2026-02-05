@@ -1,10 +1,9 @@
 from logging import getLogger
-from pathlib import Path
 
 logger = getLogger(__name__)
 
 class FilePaths:
-    PATH_TO_EXP_FILE = Path.cwd() / "expData.csv"
+    PATH_TO_EXP_FILE = "./expData.csv"
     OUTPUT_DIR = "preprocess"
     FILE_PROBES = "FOprobes"
     FILE_LINES = "FOlines"

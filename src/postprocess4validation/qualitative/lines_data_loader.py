@@ -22,21 +22,24 @@ from .utils import logger, FilePaths
 class LinesDataLoader(FileDataLoader):
     """
     Load raw lines data from a specified file.
-    
+
     This class extends FileDataLoader to handle the specific format
     of raw line data files (arbitrary whitespace-separated values).
 
     Data loader for raw lines data.
     """
+
     def __init__(self, source: str):
         super().__init__(source)
 
     @staticmethod
-    def _extract_name_and_fields(name: str) -> Tuple[str, List[str]]:
+    def _extract_name_and_fields(file: Path) -> Tuple[str, List[str]]:
         """
         Extract field information from the file name. Assumes the file name is
         <line_name>_<field0>_<field1>_..._<fieldN>.<extension>
-        
+
+        OR extract from first file commented line.
+
         Notes:
         -----
         _NAME_FIELDS_PATTERN is a regex pattern that matches the line name and
@@ -50,7 +53,7 @@ class LinesDataLoader(FileDataLoader):
             "_"
             r"([A-Za-z]+(?:_[A-Za-z]+)*)\.[a-zA-Z]+$"   # fields pattern
         )
-        match = search(_NAME_FIELDS_PATTERN, name)
+        match = search(_NAME_FIELDS_PATTERN, file.name)
         if match:
             name = match.group(1)
             fields = match.group(2).split("_")
@@ -58,10 +61,30 @@ class LinesDataLoader(FileDataLoader):
                 f"Extracted line name: {name}, fields: {fields}"
             )
             return name, fields
-        else:
-            raise OpenFOAMError(
-                f"Could not extract field names from {name}"
+
+        with file.open("r", encoding="utf-8", errors="ignore") as f:
+            first_line = f.readline()
+            if first_line.startswith("#"):
+                first_line = first_line.lstrip("#").strip()
+            else:
+                raise OpenFOAMError(
+                    f"Expected commented line with fields names in {file.name}"
+                )
+
+        tokens = first_line.split()
+
+        # Ignore the first token
+        fields = tokens[1:]
+
+        if fields:
+            logger.debug(
+                f"Extracted line name: {file.name}, fields (from first line): {fields}"
             )
+            return file.stem, fields
+
+        raise OpenFOAMError(
+            f"Could not extract field names from {file.name}"
+        )
 
     def load(self, path: Path) -> Tuple[str, Dict[str, Dict[str, ndarray]]]:
         """
@@ -85,14 +108,14 @@ class LinesDataLoader(FileDataLoader):
         data_array = loadtxt(validated_path, delimiter=None, ndmin=2)
 
         # Extract field information from the file name
-        name, fields = self._extract_name_and_fields(validated_path.name)
+        name, fields = self._extract_name_and_fields(validated_path)
 
         n_cols = data_array.shape[1]
         if n_cols != len(fields) + 1:
             raise OpenFOAMError(
                 f"Number of columns in {validated_path} does not match "
                 f"the number of fields. Expected {len(fields) + 1}, "
-                f"got {n_cols}"
+                f"got {n_cols} with fields {fields}."
             )
 
         # Initialize the data dictionary
@@ -122,7 +145,7 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
     """
     Load OpenFOAM lines data from a specified directory. Lines data typically
     stored in 'postPorcessing/<subfolder>/<time_folder>/lines' directory.
-    
+
     This class extends DirectoryDataLoader to handle the specific format
     of OpenFOAM line data files.
 
@@ -137,6 +160,7 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
     """
     # TODO: add property for folder_path that can be passed and validated in
     # initialisation (main folder path, i.e path/to/postProcessing)
+
     def __init__(
         self,
         file_loader: Type[FileDataLoader],
@@ -187,18 +211,18 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
         # Access each file in the lines_files dictionary: load and store data
         for time, files in lines_files.items():
             for file in files:
-                loader = self.file_loader(source=time) # pass time as source
+                loader = self.file_loader(source=time)  # pass time as source
                 try:
                     name, file_data = loader.load(file)
                     line = lines_cache.get(name)
 
                     if line is None:
                         line = self.plane_set.get_line_by_name(name)
-                        lines_cache[name] = line # naming unambiguous
+                        lines_cache[name] = line  # naming unambiguous
 
                     # Add to line processsed data
                     line.update_with_data(
-                        source=self.source, 
+                        source=self.source,
                         data=file_data
                     )
 
@@ -238,9 +262,8 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
                 files.setdefault(subfolder, []).append(file.path)
             else:
                 logger.warning(f'Path {file.path} not a file. Skipping...')
-                continue 
+                continue
         return files
-        
 
     def get_dirs(self, folder: Optional[Path] = None) -> List[str]:
         """
@@ -288,5 +311,3 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
         Set the plane set.
         """
         self._plane_set = plane_set
-
-

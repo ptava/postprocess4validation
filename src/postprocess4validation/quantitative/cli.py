@@ -17,7 +17,10 @@ from ..core import (
     configure_logger,
 )
 from .parser import parser
-from .analysis import run_quantitative_analysis
+from .analysis import (
+    run_quantitative_analysis,
+    run_datasets_comparison,
+)
 from .visualization import (
     define_2Dplot_storage,
     create_2Dplot,
@@ -69,12 +72,16 @@ def main() -> int:
 
         # --- Load experiment data --- #
         experiment_loader = args.loader_exp(source="experiment")
-        experiment_dataset : DataSet = experiment_loader.load(args.exp_data)
+        experiment_dataset : DataSet = experiment_loader.load(args.exp_data[0])
+        if args.fields:
+            logger.info(f"Filtering experiment dataset to fields: {args.fields}")
+            experiment_dataset.filter_fields(args.fields)
 
         # --- Initialise output file --- #
         statistics_file = args.output_dir / FilePaths.STATS_FILENAME
         plot2D_file = args.output_dir / FilePaths.PLOT2D_FILENAME
         plot3d_file = args.output_dir / FilePaths.PLOT3D_FILENAME
+
 
         logger.info(f"Initializing output file {statistics_file}")
         initialise_metrics_file(
@@ -89,6 +96,18 @@ def main() -> int:
         data2D = define_2Dplot_storage() 
         data3d = define_3Dplot_storage(experiment_dataset)
 
+        # --- Optional datasets comparison --- #
+        if len(args.exp_data) > 1:
+            logger.info("Comparing additional datasets against reference")
+            run_datasets_comparison(
+                file_loader=args.loader_exp,
+                output_file=statistics_file,
+                ref_dataset=experiment_dataset,
+                data_storage_2D=data2D,
+                data_storage_3D=data3d,
+                data_paths=args.exp_data[1:],
+            )
+
         # -- Run analysis --- #
         sim_paths: List[Path]
         if args.single:
@@ -98,7 +117,7 @@ def main() -> int:
             logger.info("Multiple simulation mode")
             plot_flag = True
             sim_paths = find_postProcessing()
-            if not sim_paths:
+            if not sim_paths and len(args.exp_data) == 1:
                 logger.error(
                     "No postProcessing directories found."
                     "Use --single to specify a path."

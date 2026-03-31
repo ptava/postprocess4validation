@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Dict, Type, Optional, Any
+from typing import Dict, Type, Optional, Any, List
 from pathlib import Path
 
 from ..core import (
@@ -15,6 +15,50 @@ from .utils import (
     logger,
     FilePaths,
 )
+
+def run_datasets_comparison(
+    file_loader: Type[FileDataLoader],
+    output_file: Path,
+    ref_dataset: DataSet,
+    data_storage_2D: Dict[str, Any],
+    data_storage_3D: Dict[str, Any],
+    data_paths: List[Path],
+) -> Dict[str, Dict[str, Dict[float, Dict[str, float]]]]:
+    """
+    Compare additional experiment datasets against a reference dataset.
+
+    Parameters
+    ----------
+    file_loader (Type[FileDataLoader]): Class to load CSV-like files
+    output_file (Path): Path to the output file where metrics will be written
+    ref_dataset (DataSet): Reference experiment dataset for comparison
+    data_storage_2D (Dict[str, Any]): Storage used for 2D plotting
+    data_storage_3D (Dict[str, Any]): Storage used for 3D plotting
+    data_paths (List[Path]): Paths to additional experiment datasets
+
+    Returns
+    -------
+    Dict[str, Dict[str, Dict[float, Dict[str, float]]]]:
+        Results grouped by dataset source name.
+    """
+    results_by_source: Dict[str, Dict[str, Dict[float, Dict[str, float]]]] = {}
+
+    for data_path in data_paths:
+        try:
+            compare_loader = file_loader(source=data_path.stem)
+            compare_dataset: DataSet = compare_loader.load(data_path)
+            results = compute_metrics(ref_dataset, compare_dataset)
+
+            write_metrics(output_file, compare_dataset.source, results, True)
+            store_2Dplot_data(data_storage_2D, compare_dataset.source, results, True)
+            store_3Dplot_data(compare_dataset, data_storage_3D, True)
+            results_by_source[compare_dataset.source] = results
+        except Exception as e:
+            logger.error(
+                f"Unexpected error during experiment comparison ({data_path}): {e}"
+            )
+
+    return results_by_source
 
 
 def run_quantitative_analysis(

@@ -35,11 +35,24 @@ def parser() -> Namespace:
     parser.add_argument(
         "--exp-data",
         type=file_path,
+        nargs="+",
         required=False,
-        default=FilePaths.PATH_TO_EXP_FILE,
+        default=[FilePaths.PATH_TO_EXP_FILE],
         help=(
-            f"Specify relative path to experiment dataset.\n"
+            f"Specify one or multiple experimental datasets to compare.\n"
+            "When multiple CSV files are provided, the first one is used as "
+            "reference for all computations.\n"
             f"Default is '{FilePaths.PATH_TO_EXP_FILE}'."
+        ),
+    )
+
+    parser.add_argument(
+        "--fields",
+        nargs="+",
+        default=None,
+        help=(
+            "Select the fields to process.\n"
+            "If omitted, all fields in reference dataset are used."
         ),
     )
 
@@ -153,5 +166,4 @@ def parser() -> Namespace:
     )
 
     return parser.parse_args()
-
 

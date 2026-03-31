@@ -105,6 +105,16 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--fields",
+        nargs="+",
+        default=None,
+        help=(
+            "Select the fields to process.\n"
+            "If omitted, all fields in reference dataset are used."
+        ),
+    )
+
+    parser.add_argument(
         "--output-dir", "-o",
         type=dir_path,
         required=False,

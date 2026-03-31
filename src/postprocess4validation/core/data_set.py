@@ -287,6 +287,26 @@ class DataSet():
             )
             raise
 
+    def filter_fields(self, fields: List[str]) -> None:
+        """
+        Keep only the selected fields in the dataset.
+
+        Parameters
+        ----------
+        fields (List[str]): Field names to retain.
+        """
+        unknown_fields = [f for f in fields if f not in self.fields]
+        if unknown_fields:
+            raise ValueError(
+                f"Unknown field(s) requested for {self.source} dataset: "
+                f"{unknown_fields}. Available fields: {list(self.fields.keys())}"
+            )
+
+        # we're are overwriting after loading, why? Data loader should be changed
+        for point in self.points:
+            for field_name in fields:
+                point.fields.pop(field_name)
+
     def points_to_planes(
             self,
             flow_direction: str = DefaultValues.FLOW_DIR,

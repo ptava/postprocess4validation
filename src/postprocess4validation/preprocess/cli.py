@@ -18,6 +18,9 @@ def main() -> int:
         # --- Load input data ---
         loader = args.loader(source="experiment")
         data = loader.load(args.exp_data)
+        if args.fields:
+            logger.info(f"Filtering dataset to fields: {args.fields}")
+            data.filter_fields(args.fields)
 
         # --- Create files ---
         if not args.lines:

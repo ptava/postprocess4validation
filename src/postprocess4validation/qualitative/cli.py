@@ -42,6 +42,9 @@ def main() -> int:
         # input file path and the call load without arguments)
         experiment_loader = args.loader_exp(source="experiment")
         experiment_dataset: DataSet = experiment_loader.load(args.exp_data)
+        if args.fields:
+            logger.info(f"Filtering experiment dataset to fields: {args.fields}")
+            experiment_dataset.filter_fields(args.fields)
 
         # --- Process experiment data --- #
         logger.info(f"Processing experiment data from: {args.exp_data}")

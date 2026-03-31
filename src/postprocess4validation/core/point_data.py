@@ -16,7 +16,7 @@ class PointData:
     ----------
 
     coordinates (tuple (x, y, z)): point's coordinates.
-    field (dict, optional): a dictionary storing field data over time with
+    fields (dict, optional): a dictionary storing field data over time with
         structure {field_name: {time: value}} where value is a scalar value.
 
     """

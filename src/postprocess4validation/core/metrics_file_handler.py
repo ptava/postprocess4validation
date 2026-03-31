@@ -128,9 +128,16 @@ def write_metrics(
 
     try:
         with open(path, "a", newline="") as file:
+            write_header = True
             file_writer = writer(file)
-            logger.debug(f"Writing header to {path}")
-            file_writer.writerow(table_header)
+            with open(path, "r") as existing_file:
+                write_header = not any(
+                    line.strip() == ",".join(table_header)
+                    for line in existing_file
+                )
+            if write_header:
+                logger.debug(f"Writing header to {path}")
+                file_writer.writerow(table_header)
             logger.debug(f"Appending {len(data_rows)} rows to {path}")
             file_writer.writerows(data_rows)
         logger.info(f"Metrics written to {path} successfully.")

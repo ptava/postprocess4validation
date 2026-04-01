@@ -48,6 +48,7 @@ class PlotConstants:
     PLOT3D_AZ = -135.0 # Azimuth
     PLOT3D_CMAP = "RdBu_r"
     MAX_COLS = 3
+    MAX_STL_FACES = 5000
 
 
 class FilePaths:

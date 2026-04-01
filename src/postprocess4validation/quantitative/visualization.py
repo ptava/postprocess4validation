@@ -520,6 +520,7 @@ def create_3Dplot(
     save_only: bool = False,
     geometry: Optional[Path] = None,
     ncols: int = PlotConstants.MAX_COLS,
+    maxFaces: int = PlotConstants.MAX_STL_FACES
 ) -> None:
     """
     Finalize a 3D scatter plot by organizing it into one or more figures
@@ -534,14 +535,34 @@ def create_3Dplot(
         default None
     ncols (int): number of columns in the plot grid, by default
         PlotConstants.MAX_COLS
+    maxFaces (int): maximum number of faces to render from the STL file, by
+        default PlotConstants.MAX_STL_FACES
     """
+
+    def _downscale_stl_vectors(vectors: ndarray, max_faces: int) -> ndarray:
+        """Downsample STL triangles when the mesh is too large."""
+        if max_faces <= 0:
+            return vectors
+
+        total_faces = len(vectors)
+        if total_faces <= max_faces: 
+            return vectors
+
+        stride = ceil(total_faces / max_faces)
+        logger.info(
+            f"Large STL detected ({total_faces} faces). "
+            f"Rendering every {stride}th face for faster plotting."
+        )
+        return vectors[::stride]
 
     def _add_geometry(ax3d: Axes, path: Path) -> None:
         """ Add geometry from an STL file to the 3D axes. """
         try:
+            # stl_mesh.vectors should be simplified if too large
             stl_mesh = mesh.Mesh.from_file(path.as_posix())
+            reduced_vectors = _downscale_stl_vectors(stl_mesh.vectors, maxFaces)
             collection = Poly3DCollection(
-                stl_mesh.vectors,
+                reduced_vectors,
                 alpha=0.5,
                 linewidths=0.1,
                 edgecolors='k',

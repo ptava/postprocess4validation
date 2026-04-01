@@ -106,10 +106,14 @@ def compute_metrics(
         raise ValueError("Simulation dataset has no points")
     
     # Extract fields if not provided
+    exp_fields = set(dataset_from_exp.fields.keys())
+    sim_fields = set(dataset_from_sim.fields.keys())
+
     if fields is None:
-        if not ref_point.fields:
-            raise ValueError("Reference point has no fields")
-        fields = list(ref_point.fields.keys())
+        common_fields = exp_fields.intersection(sim_fields)
+        if not common_fields:
+            raise ValueError("No common fields found between experiment and "
+                             "simulation datasets")
     
     # Extract time values if not provided
     if time_values is None:
@@ -132,7 +136,7 @@ def compute_metrics(
     
     # Pre-fetch experiment data for all fields to reduce redundant calls
     experiment_data_cache = {}
-    for f in fields:
+    for f in common_fields:
         try:
             experiment_data_cache[f] = dataset_from_exp.get_field_values(
                 field_name=f, time=0, point_coordinates=points_coordinates
@@ -143,7 +147,7 @@ def compute_metrics(
             experiment_data_cache[f] = None
 
     # Process each field and time
-    for f in fields:
+    for f in common_fields:
         if experiment_data_cache[f] is None or len(experiment_data_cache[f]) == 0:
             logger.warning(f"Skipping field {f} due to missing experiment data")
             continue

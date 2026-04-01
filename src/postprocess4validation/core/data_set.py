@@ -289,11 +289,11 @@ class DataSet():
 
     def filter_fields(self, fields: List[str]) -> None:
         """
-        Keep only the selected fields in the dataset.
+        Remove selected fields from the dataset.
 
         Parameters
         ----------
-        fields (List[str]): Field names to retain.
+        fields (List[str]): Field names to remove.
         """
         unknown_fields = [f for f in fields if f not in self.fields]
         if unknown_fields:
@@ -304,8 +304,19 @@ class DataSet():
 
         # we're are overwriting after loading, why? Data loader should be changed
         for point in self.points:
-            for field_name in fields:
-                point.fields.pop(field_name)
+            point.fields = {
+                field_name: values
+                for field_name, values in point.fields.items()
+                if field_name not in fields
+            }
+
+        self._fields = {
+            field_name: unit
+            for field_name, unit in self.fields.items()
+            if field_name not in fields
+        }
+            # for field_name in fields:
+            #     point.fields.pop(field_name)
 
     def points_to_planes(
             self,

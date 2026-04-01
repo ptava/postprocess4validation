@@ -109,7 +109,7 @@ def parser() -> Namespace:
         nargs="+",
         default=None,
         help=(
-            "Select the fields to process.\n"
+            "Exclude these fields\n"
             "If omitted, all fields in reference dataset are used."
         ),
     )

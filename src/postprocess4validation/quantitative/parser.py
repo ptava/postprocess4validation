@@ -7,6 +7,7 @@ from ..core import (
     LoaderRegistry,
     dir_path,
     file_path,
+    DefaultValues,
 )
 from .utils import FilePaths
 
@@ -165,5 +166,14 @@ def parser() -> Namespace:
         ),
     )
 
-    return parser.parse_args()
+    parser.add_argument(
+        "--digits",
+        type=int,
+        default=DefaultValues.DIGITS,
+        help=(
+            f"Number of decimal places for metrics values in the output file.\n"
+            f"Default is {DefaultValues.DIGITS}."
+        ),
+    )
 
+    return parser.parse_args()

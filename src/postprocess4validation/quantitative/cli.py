@@ -106,6 +106,7 @@ def main() -> int:
                 data_storage_2D=data2D,
                 data_storage_3D=data3d,
                 data_paths=args.exp_data[1:],
+                digits=args.digits,
             )
 
         # -- Run analysis --- #
@@ -137,6 +138,7 @@ def main() -> int:
                     data_path=sim_path,
                     last_time_only=plot_flag,
                     time=args.time_folder,
+                    digits=args.digits,
                 )
             except Exception as e:
                 logger.error(f"Unexpected error during quantitative analysis: {e}")

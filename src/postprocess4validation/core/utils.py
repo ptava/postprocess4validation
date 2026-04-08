@@ -26,6 +26,7 @@ class Info:
 class DefaultValues:
     DEFAULT_TIME_FOR_DATASET = 0.0
     FLOW_DIR = 'X'
+    DIGITS = 3  # Number of digits to round to for validation comparisons
 
 class LoaderKind(str, Enum):
     FILE = "file"

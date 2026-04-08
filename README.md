@@ -75,7 +75,7 @@ A measure of scatter that includes both systematic and random errors.
 - Not meaningful for variables that can be both positive and negative (e.g., velocity components).
 
 $$
-NMSE = \frac{1}{n} \sum_{i=1}^n \frac{(O_i - P_i)^2}{\overline{O} \, \overline{P}}
+NMSE = \frac{1}{n} \sum_{i=1}^n \frac{(O_i - P_i)^2}{\overline{O} \overline{P}}
 $$
 
 #### <u>Normalised relative error</u> ($NRE_i$)

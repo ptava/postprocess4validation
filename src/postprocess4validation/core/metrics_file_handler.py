@@ -6,7 +6,7 @@ from importlib import metadata
 from pathlib import Path
 
 from .exceptions import MetricsFileError
-from .utils import logger, Info
+from .utils import logger, Info, DefaultValues
 
 
 def _get_package_info() -> Tuple[str, str]:
@@ -80,7 +80,7 @@ def write_metrics(
     identifier: str, 
     metrics_dict: Dict,
     last_time_only: bool = False,
-    decimal_places: int = 3,
+    decimal_places: int = DefaultValues.DIGITS,
 ) -> None:
     """
     Appends computed statistical metrics to an existing table or creates a new 

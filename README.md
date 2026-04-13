@@ -154,6 +154,9 @@ quantitative-cli --single path/to/postProcessing --exp path/to/expData.csv
 # Process multiple simulations (automatically detected)
 quantitative-cli --exp path/to/expData.csv
 
+# Process multiple simulations and exclude one case
+quantitative-cli --exp path/to/expData.csv --exclude caseB
+
 # Save plot without displaying
 quantitative-cli --exp path/to/expData.csv --save-only
 
@@ -168,6 +171,9 @@ qualitative-cli --single path/to/postProcessing --exp path/to/expData.csv
 
 # Process multiple simulations (automatically detected)
 qualitative-cli --exp path/to/expData.csv
+
+# Process multiple simulations and exclude one case
+qualitative-cli --exp path/to/expData.csv --exclude caseB
 
 # Save plot without displaying
 qualitative-cli --exp path/to/expData.csv --save-only

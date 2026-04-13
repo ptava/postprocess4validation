@@ -34,6 +34,16 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--exclude",
+        nargs="+",
+        default=None,
+        help=(
+            "Exclude simulation cases when auto-detecting multiple runs.\n"
+            "Each value can be a case name or a path to the case folder."
+        ),
+    )
+
+    parser.add_argument(
         "--exp-data",
         type=file_path,
         nargs="+",

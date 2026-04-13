@@ -21,6 +21,7 @@ from postprocess4validation.core import (
     output_path,
     get_time_subfolders,
     get_latest_time_subfolder,
+    filter_postProcessing,
     PlaneSet,
     DataSet,
     PointData,
@@ -369,3 +370,12 @@ class TestOpenFOAMUtils:
             get_time_subfolders(empty)
         with pytest.raises(NoTimeFolderError):
             get_latest_time_subfolder(empty)
+
+    def test_filter_post_processing(self, tmp_path):
+        keep = tmp_path / "caseA" / "postProcessing"
+        drop = tmp_path / "caseB" / "postProcessing"
+        keep.mkdir(parents=True)
+        drop.mkdir(parents=True)
+
+        filtered = filter_postProcessing([keep, drop], ["caseB"])
+        assert filtered == [keep]

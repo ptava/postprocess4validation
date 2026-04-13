@@ -18,6 +18,7 @@ from .exceptions import (
 )
 from .openfoam_utils import (
     find_postProcessing,
+    filter_postProcessing,
     get_time_subfolders,
     get_latest_time_subfolder,
 )
@@ -62,6 +63,7 @@ __all__ = [
     'Plane',
     'PlaneSet',
     'find_postProcessing',
+    'filter_postProcessing',
     'get_time_subfolders',
     'get_latest_time_subfolder',
     'initialise_metrics_file',
@@ -84,4 +86,3 @@ __all__ = [
     'get_distinct_color',
     'get_marker',
 ]
-

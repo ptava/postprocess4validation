@@ -13,6 +13,7 @@ from pathlib import Path
 from ..core import (
     DataSet,
     find_postProcessing,
+    filter_postProcessing,
     initialise_metrics_file,
     configure_logger,
 )
@@ -117,10 +118,13 @@ def main() -> int:
         else:
             logger.info("Multiple simulation mode")
             plot_flag = True
-            sim_paths = find_postProcessing()
+            sim_paths = filter_postProcessing(
+                find_postProcessing(),
+                args.exclude or [],
+            )
             if not sim_paths and len(args.exp_data) == 1:
                 logger.error(
-                    "No postProcessing directories found."
+                    "No postProcessing directories found after exclusions."
                     "Use --single to specify a path."
                 )
                 return 1

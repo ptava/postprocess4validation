@@ -19,6 +19,7 @@ from ..core import (
     DataSet,
     configure_logger,
     find_postProcessing,
+    filter_postProcessing,
 )
 from .parser import parser
 from .utils import logger, FilePaths
@@ -62,10 +63,13 @@ def main() -> int:
         else:
             logger.info("Multiple simulation mode")
             plot_flag = True
-            simulations_data_folders = find_postProcessing()
+            simulations_data_folders = filter_postProcessing(
+                find_postProcessing(),
+                args.exclude or [],
+            )
             if not simulations_data_folders:
                 logger.error(
-                    "No postProcessing directories found."
+                    "No postProcessing directories found after exclusions."
                     "Use --single to specify a path."
                 )
                 return 1

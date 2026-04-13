@@ -1,6 +1,6 @@
 from subprocess import run, PIPE
 from pathlib import Path
-from typing import List
+from typing import Iterable, List
 from os import scandir
 from re import compile
 
@@ -17,6 +17,31 @@ def find_postProcessing(start_path=".") -> List[Path]:
     """
     dirs = [p for p in Path(start_path).rglob("postProcessing") if p.is_dir()]
     return sorted(dirs)
+
+def filter_postProcessing(
+    dirs: List[Path],
+    excluded: Iterable[str | Path],
+) -> List[Path]:
+    """
+    Exclude matching postProcessing directories from a discovered list.
+
+    A value matches when it refers to the case folder name or an explicit path
+    to the case folder or the postProcessing folder.
+    """
+    excluded_tokens: set[str] = set()
+    for item in excluded:
+        path = Path(item)
+        excluded_tokens.update(_path_tokens(path))
+
+    return [
+        directory
+        for directory in dirs
+        if _path_tokens(directory).isdisjoint(excluded_tokens)
+    ]
+
+def _path_tokens(path: Path) -> set[str]:
+    tokens = {path.name, path.parent.name, str(path.resolve())}
+    return {token for token in tokens if token and token != "."}
 
 def get_latest_time_subfolder(path: Path) -> str:
     """
@@ -61,4 +86,3 @@ def is_openfoam_installed() -> bool:
     except Exception as e:
         logger.error(f"Error while checking OpenFOAM installation: {e}")
         return False
-

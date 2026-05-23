@@ -111,9 +111,18 @@ def compute_metrics(
 
     if fields is None:
         common_fields = exp_fields.intersection(sim_fields)
-        if not common_fields:
-            raise ValueError("No common fields found between experiment and "
-                             "simulation datasets")
+    else:
+        common_fields = set(fields).intersection(exp_fields, sim_fields)
+        unavailable_fields = set(fields) - common_fields
+        if unavailable_fields:
+            raise ValueError(
+                "Requested field(s) are not available in both experiment and "
+                f"simulation datasets: {sorted(unavailable_fields)}"
+            )
+
+    if not common_fields:
+        raise ValueError("No common fields found between experiment and "
+                         "simulation datasets")
     
     # Extract time values if not provided
     if time_values is None:
@@ -356,5 +365,4 @@ def _compute_geometric_variance(
     result = exp(npmean(log_ratio ** 2))
     
     return float(result)
-
 

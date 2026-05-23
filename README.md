@@ -160,6 +160,9 @@ quantitative-cli --exp path/to/expData.csv --exclude caseB
 # Save plot without displaying
 quantitative-cli --exp path/to/expData.csv --save-only
 
+# Ignore samples before a simulation time
+quantitative-cli --exp path/to/expData.csv --start-time 500
+
 # Enable interactive lens and add geometru to 3D plot
 quantitative-cli --exp path/to/expData.csv --interactive --stl path/to/geometry.stl
 ```
@@ -177,6 +180,9 @@ qualitative-cli --exp path/to/expData.csv --exclude caseB
 
 # Save plot without displaying
 qualitative-cli --exp path/to/expData.csv --save-only
+
+# Ignore simulation time folders before a threshold
+qualitative-cli --exp path/to/expData.csv --start-time 500
 
 # Enable interactive scaling and add geometry sections to 2D plots
 qualitative-cli --exp path/to/expData.csv --interactive --stl path/to/geometry.stl

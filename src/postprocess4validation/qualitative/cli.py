@@ -80,6 +80,7 @@ def main() -> int:
             plane_set=planes,
             directory_loader=args.loader_sim[0],
             file_loader=args.loader_sim[1],
+            start_time=args.start_time,
         )
 
         logger.info("Processing completed, generating plots... ")

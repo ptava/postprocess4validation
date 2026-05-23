@@ -26,7 +26,7 @@ STATIC_DIR = TEST_DIR / "static"
 EXPERIMENT_DATA_DIR = STATIC_DIR / "experiment_data"
 SIMULATION_DATA_DIR = STATIC_DIR / "simulation_data" 
 
-
+# Sanity checks for tests data structure
 @pytest.fixture(scope="session")
 def experiment_data_path():
     """Return the path to the experiment data CSV file."""
@@ -35,7 +35,6 @@ def experiment_data_path():
         pytest.fail(f"Experiment data file not found: {exp_file}")
     return exp_file
 
-
 @pytest.fixture(scope="session")
 def simulation_data_path():
     """Return the path to the simulation data directory."""
@@ -43,7 +42,7 @@ def simulation_data_path():
         pytest.fail(f"Simulation data directory not found: {SIMULATION_DATA_DIR}")
     return SIMULATION_DATA_DIR
 
-
+# Experimental data loading 
 @pytest.fixture(scope="session")
 def experiment_dataset(experiment_data_path):
     """
@@ -59,7 +58,7 @@ def experiment_dataset(experiment_data_path):
     except Exception as e:
         pytest.fail(f"Failed to load experiment data: {e}")
 
-
+# "Probes" data loading
 @pytest.fixture(scope="session")
 def simulation_probes_paths(simulation_data_path):
     """
@@ -173,3 +172,22 @@ def all_simulation_datasets(simulation_probes_paths):
         pytest.fail("Failed to load any simulation datasets")
     
     return datasets
+
+# "Lines" data loading
+@pytest.fixture(scope="session")
+def line_file_path():
+    """Return the path to the line data file."""
+    line_file = (
+        SIMULATION_DATA_DIR
+        / "testA"
+        / "postProcessing"
+        / "lines"
+        / "682"
+        / "line_-0.02_0_UMag_k.xy"
+    )
+    if not line_file.exists():
+        pytest.fail(f"Line data file not found: {line_file}")
+    return line_file
+
+
+                                        

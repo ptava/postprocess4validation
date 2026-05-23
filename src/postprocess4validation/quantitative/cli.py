@@ -142,6 +142,7 @@ def main() -> int:
                     data_path=sim_path,
                     last_time_only=plot_flag,
                     time=args.time_folder,
+                    start_time=args.start_time,
                     digits=args.digits,
                 )
             except Exception as e:

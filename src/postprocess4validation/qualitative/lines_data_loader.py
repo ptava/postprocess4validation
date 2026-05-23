@@ -169,9 +169,12 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
         plane_set: Optional[PlaneSet] = None,
         time: Optional[str] = None,
         subfolder: Optional[str] = None,
+        start_time: Optional[float] = None,
     ):
         self._plane_set = plane_set
         self._subfolder = subfolder or FilePaths.LINES_SUBFOLDER
+        self._time = time
+        self._start_time = start_time
         super().__init__(file_loader, source, folder)
 
     def load(self, path: Path) -> None:
@@ -199,6 +202,7 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
 
         # Get all subfolders names in the specified directory
         times = self.get_dirs(processing_folder)
+        times = self._filter_times(times)
 
         # Collect all files in the subfolders (i.e. time dirs)
         lines_files: Dict[str, List[Path]] = {}
@@ -278,6 +282,31 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
             return get_time_subfolders(folder)
         return get_time_subfolders(self.folder)
 
+    def _filter_times(self, times: List[str]) -> List[str]:
+        """
+        Apply the configured time folder and start-time filters.
+        """
+        if self.time is not None:
+            times = [time for time in times if time == self.time]
+
+        if self.start_time is not None:
+            original_count = len(times)
+            times = [
+                time for time in times
+                if float(time) >= self.start_time
+            ]
+            logger.info(
+                f"Ignored {original_count - len(times)} line time folders "
+                f"before start time {self.start_time}"
+            )
+
+        if not times:
+            raise OpenFOAMError(
+                "No line time folders available after applying time filters."
+            )
+
+        return sorted(times, key=float)
+
     @property
     def subfolder(self) -> str:
         """
@@ -291,6 +320,34 @@ class OpenFOAMLinesLoader(DirectoryDataLoader):
         Set the subfolder.
         """
         self._subfolder = subfolder
+
+    @property
+    def time(self) -> Optional[str]:
+        """
+        Get the selected time folder.
+        """
+        return self._time
+
+    @time.setter
+    def time(self, time: Optional[str]):
+        """
+        Set the selected time folder.
+        """
+        self._time = time
+
+    @property
+    def start_time(self) -> Optional[float]:
+        """
+        Get the minimum time folder value to include.
+        """
+        return self._start_time
+
+    @start_time.setter
+    def start_time(self, start_time: Optional[float]):
+        """
+        Set the minimum time folder value to include.
+        """
+        self._start_time = start_time
 
     @property
     def plane_set(self) -> PlaneSet:

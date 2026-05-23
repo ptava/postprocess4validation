@@ -74,6 +74,7 @@ def run_quantitative_analysis(
     data_path: Path,
     last_time_only: bool = False,
     time: Optional[str] = None,
+    start_time: Optional[float] = None,
     digits: int = DefaultValues.DIGITS,
 ) -> Dict:
     """
@@ -98,6 +99,7 @@ def run_quantitative_analysis(
     last_time_only (bool): Flag to hangle single or multiple simulations plots
     time (Optional[str]): Specific time step to process; if None, latest time
         folder is used
+    start_time (Optional[float]): Minimum simulation sample time to include.
     digits (int): Number of decimal places for metrics values in the output file
 
     Returns
@@ -120,6 +122,7 @@ def run_quantitative_analysis(
         if isinstance(loader, OpenFOAMProbesLoader):
             loader.subfolder = FilePaths.PROBES_SUBFOLDER # type: ignore
             loader.time = time # type: ignore
+            loader.start_time = start_time # type: ignore
         else:
             raise TypeError(f"Unsupported loader type: {type(loader)}") 
 

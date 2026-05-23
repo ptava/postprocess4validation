@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Optional, Type
 from pathlib import Path
 
 from ..core import (
@@ -16,6 +16,7 @@ def run_qualitative_analysis(
     directory_loader: Type[DirectoryDataLoader],
     file_loader: Type[FileDataLoader],
     plane_set: PlaneSet,
+    start_time: Optional[float] = None,
 ) -> None:
     """
     Run qualitative analysis on simulation data.
@@ -30,6 +31,7 @@ def run_qualitative_analysis(
     directory_loader (Type[DirectoryDataLoader]): class to load folder
     file_loader (Type[FileDataLoader]): class to load file
     plane_set (PlaneSet): set of available planes to store data in
+    start_time (Optional[float]): Minimum simulation time folder to include
     """
     for idx, sim_path in enumerate(simulation_paths):
         logger.info(
@@ -41,6 +43,7 @@ def run_qualitative_analysis(
             directory_loader=directory_loader,
             file_loader=file_loader,
             data_path=sim_path,
+            start_time=start_time,
         )
 
 
@@ -49,6 +52,7 @@ def load_data_into_planeset(
     directory_loader: Type[DirectoryDataLoader],
     file_loader: Type[FileDataLoader],
     data_path: Path,
+    start_time: Optional[float] = None,
 ) -> None:
     """
     Process simulation data using the provided simulation loaders
@@ -58,6 +62,7 @@ def load_data_into_planeset(
     directory_loader (Type[DirectoryDataLoader]): class to load directory
     file_loader (Type[FileDataLoader]): class to load file
     data_path (Path): Path to the simulation data directory
+    start_time (Optional[float]): Minimum simulation time folder to include
     """
     # --- Load simulation data --- #
     parent_directory = data_path.resolve().parent.name
@@ -72,6 +77,7 @@ def load_data_into_planeset(
     if isinstance(loader, OpenFOAMLinesLoader):
         loader.subfolder = FilePaths.LINES_SUBFOLDER  # type: ignore[arg-type]
         loader.plane_set = plane_set  # type: ignore[arg-type]
+        loader.start_time = start_time  # type: ignore[arg-type]
 
     else:
         raise TypeError(f"Unsupported loader type: {type(loader)}. ")

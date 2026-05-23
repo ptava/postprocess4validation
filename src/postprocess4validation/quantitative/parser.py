@@ -79,6 +79,17 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--start-time",
+        type=float,
+        required=False,
+        default=None,
+        help=(
+            "Ignore simulation samples with time values smaller than this "
+            "threshold. By default all loaded samples are used."
+        ),
+    )
+
+    parser.add_argument(
         "--output-dir", "-o",
         type=dir_path,
         required=False,

@@ -28,6 +28,10 @@ class ProbesLoader(FileDataLoader):
         r"# Probe (\d+) \((-?[\d\.]+) (-?[\d\.]+) (-?[\d\.]+)\)"
     )
 
+    def __init__(self, source: str = "file", start_time: Optional[float] = None):
+        super().__init__(source)
+        self._start_time = start_time
+
     def load(self, path: Path) -> DataSet:
         """
         Load CSV probe data from the specified path.
@@ -106,8 +110,7 @@ class ProbesLoader(FileDataLoader):
             logger.error(f"Failed to extend dataset with {path}: {e}")
             raise ValueError(f"Failed to extend dataset with {path}: {e}")
 
-    @staticmethod
-    def _process_probes_data(path: Path, dataset: DataSet) -> DataSet:
+    def _process_probes_data(self, path: Path, dataset: DataSet) -> DataSet:
         """
         Process the probe data from the CSV file and associate it with the dataset
         points.
@@ -127,6 +130,20 @@ class ProbesLoader(FileDataLoader):
             logger.warning(f"No data found in file {path}")
         times = data[:, 0]
         values = data[:, 1:]
+        if self.start_time is not None:
+            mask = times >= self.start_time
+            skipped = len(times) - int(mask.sum())
+            times = times[mask]
+            values = values[mask]
+            if len(times) == 0:
+                raise OpenFOAMError(
+                    f"No samples in {path} at or after start time "
+                    f"{self.start_time}."
+                )
+            logger.info(
+                f"Ignored {skipped} samples from {path.name} before start "
+                f"time {self.start_time}"
+            )
         n_points = values.shape[1]
         if n_points != len(dataset):
             raise OpenFOAMError(
@@ -140,6 +157,20 @@ class ProbesLoader(FileDataLoader):
             }
         logger.info(f"Loaded {len(dataset)} points from {path}")
         return dataset
+
+    @property
+    def start_time(self) -> Optional[float]:
+        """
+        Minimum sample time to include.
+        """
+        return self._start_time
+
+    @start_time.setter
+    def start_time(self, start_time: Optional[float]) -> None:
+        """
+        Set the minimum sample time to include.
+        """
+        self._start_time = start_time
 
 
 @register_loader(name = "OpenFOAMProbes")
@@ -158,6 +189,7 @@ class OpenFOAMProbesLoader(DirectoryDataLoader):
     source (str): Source of the data.
     subfolder (str): Subfolder name. Default value 'FilePaths.PROBES_SUBFOLDER'.
     time (str): Time step to process. If None, all time steps are processed.
+    start_time (Optional[float]): Minimum sample time to include.
     """
     def __init__(
         self,
@@ -166,10 +198,12 @@ class OpenFOAMProbesLoader(DirectoryDataLoader):
         source: str,
         subfolder: Optional[str] = None,
         time: Optional[str] = None,
+        start_time: Optional[float] = None,
     ):
         super().__init__(file_loader, source, folder)
         self._subfolder = subfolder or FilePaths.PROBES_SUBFOLDER
         self._time = time 
+        self._start_time = start_time
 
     def load(self, path: Path) -> DataSet:
         """
@@ -211,6 +245,8 @@ class OpenFOAMProbesLoader(DirectoryDataLoader):
 
         # initialise file loader
         file_loader = self.file_loader(source=self.source)
+        if hasattr(file_loader, "start_time"):
+            file_loader.start_time = self.start_time
 
         # Process header info from the first file with 'load' method
         first_file = probe_files[0]
@@ -271,3 +307,16 @@ class OpenFOAMProbesLoader(DirectoryDataLoader):
         """
         self._time = time
 
+    @property
+    def start_time(self) -> Optional[float]:
+        """
+        Get the minimum sample time.
+        """
+        return self._start_time
+
+    @start_time.setter
+    def start_time(self, start_time: Optional[float]):
+        """
+        Set the minimum sample time.
+        """
+        self._start_time = start_time

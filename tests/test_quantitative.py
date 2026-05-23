@@ -220,6 +220,48 @@ class TestDatasetComparison:
             )
             assert len(sim_values) > 0, f"No field values retrieved from {case_name} dataset"
 
+
+class TestQuantitativeTimeFiltering:
+    """Tests for start-time filtering in quantitative data loading."""
+
+    def test_openfoam_probes_loader_filters_before_start_time(
+        self,
+        simulation_probes_paths,
+    ):
+        probe_dir = simulation_probes_paths[0]
+        case_name = probe_dir.parent.parent.name
+        loader = OpenFOAMProbesLoader(
+            file_loader=ProbesLoader,
+            folder=probe_dir.parent,
+            source=case_name,
+            subfolder=probe_dir.name,
+            time="0",
+            start_time=682.0,
+        )
+
+        dataset = loader.load(probe_dir.parent)
+
+        assert dataset.get_all_times() == [682.0]
+
+    def test_openfoam_probes_loader_raises_when_filter_removes_all_samples(
+        self,
+        simulation_probes_paths,
+    ):
+        probe_dir = simulation_probes_paths[0]
+        case_name = probe_dir.parent.parent.name
+        loader = OpenFOAMProbesLoader(
+            file_loader=ProbesLoader,
+            folder=probe_dir.parent,
+            source=case_name,
+            subfolder=probe_dir.name,
+            time="0",
+            start_time=683.0,
+        )
+
+        with pytest.raises(ValueError, match="start time"):
+            loader.load(probe_dir.parent)
+
+
 class TestQuantitativeAnalysis:
     """Tests for the quantitative analysis pipeline."""
 
@@ -326,5 +368,3 @@ class TestQuantitativeAnalysis:
             # If the analysis fails, it might be due to missing visualization components
             # or incompatible data. We'll mark this as an expected failure.
             pytest.xfail(f"Analysis failed: {e}")
-
-

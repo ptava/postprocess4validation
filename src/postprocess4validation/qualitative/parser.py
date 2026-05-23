@@ -104,6 +104,17 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--start-time",
+        type=float,
+        required=False,
+        default=None,
+        help=(
+            "Ignore simulation time folders smaller than this threshold. "
+            "By default all loaded time folders are used."
+        ),
+    )
+
+    parser.add_argument(
         "--exp-data", "-e",
         type=file_path,
         required=False,

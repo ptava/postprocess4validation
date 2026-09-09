@@ -44,9 +44,12 @@ from .data_loader import (
     FileDataLoader,
 )
 from .visualization import (
+    Color,
     CustomFormatStrFormatter,
     get_marker,
     get_distinct_color,
+    get_plot_color,
+    parse_color,
     connect_save_event,
 )
 
@@ -81,8 +84,11 @@ __all__ = [
     'Info',
     'FileDataLoader',
     'DefaultValues',
+    'Color',
     'CustomFormatStrFormatter',
     'connect_save_event',
     'get_distinct_color',
+    'get_plot_color',
+    'parse_color',
     'get_marker',
 ]

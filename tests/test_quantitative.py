@@ -6,9 +6,11 @@ This module contains tests for the quantitative analysis functionality including
 - Analysis pipeline
 - Visualization functions
 """
+import logging
 import pytest
 import numpy as np
-from postprocess4validation.core import DataSet, find_postProcessing
+from matplotlib import pyplot as plt
+from postprocess4validation.core import DataSet, PointData, find_postProcessing
 from postprocess4validation.quantitative.computations import (
     _compute_nmse,
     _compute_mean_bias,
@@ -21,7 +23,9 @@ from postprocess4validation.quantitative import (
     compute_metrics,
     run_quantitative_analysis,
     define_2Dplot_storage,
+    store_2Dplot_data,
     define_3Dplot_storage,
+    store_3Dplot_data,
     create_2Dplot,
     create_3Dplot,
 )
@@ -132,6 +136,76 @@ class TestMetricsComputation:
                 if time in results[metric]:
                     assert test_field in results[metric][time]
                     assert isinstance(results[metric][time][test_field], float)
+
+    def test_compute_metrics_uses_only_matching_coordinates(self, caplog):
+        exp_dataset = DataSet(source="experiment")
+        exp_dataset.add_point(
+            PointData((0.0, 0.0, 0.0), {"UMag": {0.0: 1.0}})
+        )
+        exp_dataset.add_point(
+            PointData((1.0, 0.0, 0.0), {"UMag": {0.0: 2.0}})
+        )
+        exp_dataset.add_point(
+            PointData((2.0, 0.0, 0.0), {"UMag": {0.0: 3.0}})
+        )
+
+        sim_dataset = DataSet(source="simulation")
+        sim_dataset.add_point(
+            PointData((1.0, 0.0, 0.0), {"UMag": {1.0: 2.2}})
+        )
+        sim_dataset.add_point(
+            PointData((2.0, 0.0, 0.0), {"UMag": {1.0: 2.7}})
+        )
+        sim_dataset.add_point(
+            PointData((3.0, 0.0, 0.0), {"UMag": {1.0: 4.0}})
+        )
+
+        caplog.set_level(logging.WARNING)
+        results = compute_metrics(
+            dataset_from_exp=exp_dataset,
+            dataset_from_sim=sim_dataset,
+            time_values=[1.0],
+            fields=["UMag"],
+        )
+
+        assert MetricNames.NMSE in results
+        assert "UMag" in results[MetricNames.NMSE][1.0]
+        assert "Skipping 1 simulation probe point" in caplog.text
+        assert "Skipping 1 experiment point" in caplog.text
+
+        assert "NRE_UMag" in sim_dataset.fields
+        assert sim_dataset.get_point_by_coordinates(
+            (1.0, 0.0, 0.0)
+        )["NRE_UMag", 1.0] == pytest.approx(0.1)
+        assert sim_dataset.get_point_by_coordinates(
+            (2.0, 0.0, 0.0)
+        )["NRE_UMag", 1.0] == pytest.approx(0.1)
+        with pytest.raises(KeyError):
+            sim_dataset.get_point_by_coordinates(
+                (3.0, 0.0, 0.0)
+            )["NRE_UMag", 1.0]
+
+    def test_3d_plot_storage_uses_coordinates_with_nre_values(self):
+        dataset = DataSet(source="simulation")
+        dataset.add_point(
+            PointData((1.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.1}})
+        )
+        dataset.add_point(
+            PointData((2.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.2}})
+        )
+        dataset.add_point(
+            PointData((3.0, 0.0, 0.0), {"UMag": {1.0: 4.0}})
+        )
+        data_storage = define_3Dplot_storage(dataset)
+
+        store_3Dplot_data(dataset, data_storage)
+
+        assert data_storage["fields"] == ["NRE_UMag"]
+        assert data_storage["fields_values"][0].tolist() == [0.1, 0.2]
+        assert data_storage["coordinates"][0].tolist() == [
+            [1.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+        ]
 
 
 class TestDatasetComparison:
@@ -368,3 +442,117 @@ class TestQuantitativeAnalysis:
             # If the analysis fails, it might be due to missing visualization components
             # or incompatible data. We'll mark this as an expected failure.
             pytest.xfail(f"Analysis failed: {e}")
+
+
+class TestQuantitativePlotColors:
+    def test_2d_plot_storage_uses_predefined_colors(self):
+        colors = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
+        data_storage = define_2Dplot_storage(colors=colors)
+        statistics = {
+            MetricNames.MG: {
+                1.0: {"UMag": 1.1},
+                2.0: {"UMag": 1.2},
+                3.0: {"UMag": 1.3},
+            },
+            MetricNames.GV: {
+                1.0: {"UMag": 1.1},
+                2.0: {"UMag": 1.2},
+                3.0: {"UMag": 1.3},
+            },
+        }
+
+        store_2Dplot_data(
+            data_storage=data_storage,
+            source="case",
+            statistics=statistics,
+            last_time_only=False,
+        )
+
+        assert data_storage["colors"] == [colors[0], colors[1], colors[0]]
+        assert [
+            scatter_args["color"]
+            for scatter_args in data_storage["all_scatter_args"]
+        ] == [colors[0], colors[1], colors[0]]
+
+
+class TestQuantitativeNoSave:
+    def test_2d_plot_no_save_skips_headless_file_write(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("DISPLAY", raising=False)
+        data_storage = define_2Dplot_storage()
+        statistics = {
+            MetricNames.MG: {1.0: {"UMag": 1.1}},
+            MetricNames.GV: {1.0: {"UMag": 1.2}},
+        }
+        store_2Dplot_data(
+            data_storage=data_storage,
+            source="case",
+            statistics=statistics,
+            last_time_only=False,
+        )
+
+        plot_file = tmp_path / "plot_2d.png"
+        create_2Dplot(
+            data_storage=data_storage,
+            file_path=plot_file,
+            save_only=False,
+            interactive=False,
+            no_save=True,
+        )
+
+        assert not plot_file.exists()
+        plt.close("all")
+
+    def test_2d_plot_no_save_shows_when_display_is_available(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        monkeypatch.setenv("DISPLAY", ":99")
+        show_calls = []
+        monkeypatch.setattr(plt, "show", lambda: show_calls.append(True))
+        data_storage = define_2Dplot_storage()
+        statistics = {
+            MetricNames.MG: {1.0: {"UMag": 1.1}},
+            MetricNames.GV: {1.0: {"UMag": 1.2}},
+        }
+        store_2Dplot_data(
+            data_storage=data_storage,
+            source="case",
+            statistics=statistics,
+            last_time_only=False,
+        )
+
+        plot_file = tmp_path / "plot_2d.png"
+        create_2Dplot(
+            data_storage=data_storage,
+            file_path=plot_file,
+            save_only=False,
+            interactive=False,
+            no_save=True,
+        )
+
+        assert show_calls == [True]
+        assert not plot_file.exists()
+        plt.close("all")
+
+    def test_3d_plot_no_save_skips_headless_file_write(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("DISPLAY", raising=False)
+        dataset = DataSet(source="simulation")
+        dataset.add_point(
+            PointData((1.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.1}})
+        )
+        dataset.add_point(
+            PointData((2.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.2}})
+        )
+        data_storage = define_3Dplot_storage(dataset)
+        store_3Dplot_data(dataset, data_storage)
+
+        create_3Dplot(
+            data_storage=data_storage,
+            file_path=tmp_path / "plot_3d.png",
+            save_only=False,
+            no_save=True,
+        )
+
+        assert not any(tmp_path.iterdir())
+        plt.close("all")

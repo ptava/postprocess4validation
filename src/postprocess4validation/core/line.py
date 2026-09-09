@@ -1,11 +1,10 @@
 from numpy import ndarray
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Set, Tuple
-from numpy.typing import NDArray
+from typing import Dict, Optional, List, Sequence, Set, Tuple
 from matplotlib.axes import Axes
 
 from .point_data import PointData
-from .visualization import get_distinct_color
+from .visualization import Color, get_plot_color
 from .utils import logger, Info
 
 
@@ -90,10 +89,12 @@ class Line:
         return self.values[source][field]
 
     # --- Public methods --- #
-    def add_color(self, color: NDArray) -> None:
+    def add_color(self, color: Color) -> None:
         """Add a color to the line."""
-        if len(color) != 3 or not all(0 <= c <= 255 for c in color):
-            raise ValueError(f"Color must be a list of 3 integers (0-255) – got {color}")
+        if len(color) != 3 or not all(0 <= c <= 1 for c in color):
+            raise ValueError(
+                f"Color must be an RGB tuple with values in [0, 1] - got {color}"
+            )
         color_as_tuple = tuple(color)
         self._colors.append(color_as_tuple)
 
@@ -226,11 +227,65 @@ class Line:
                     field_name: str, 
                     last_time_only: bool,
                     line_marker: str = '.',
-                    scale: float = 1.0) -> None:
+                    scale: float = 1.0,
+                    line_style: str = "scatter",
+                    colors: Optional[Sequence[Color]] = None) -> bool:
         """ Plot the data of the line on the given axes applying scale on first
         axis and using the last time step only if specified. """
+        if line_style not in {"scatter", "line"}:
+            raise ValueError(
+                f"Unsupported line style {line_style!r}. "
+                "Choose 'scatter' or 'line'."
+            )
 
-        # Add line positioning
+        color_counter = 0   # start color counter
+        self.clear_labels() # make sure to start with empty labels list
+        self.clear_colors() # make sure to start with empty colors list
+        plot_entries = []
+
+        # Collect plottable line data for each source for the current field.
+        for source in self.sources:
+            try:
+                times = self.get_times(source, field_name)
+            except KeyError:
+                logger.info(
+                    f"Line {self.name}: skipping missing field {field_name!r} "
+                    f"for source {source!r}"
+                )
+                continue
+
+            if not times:
+                logger.info(
+                    f"Line {self.name}: skipping empty field {field_name!r} "
+                    f"for source {source!r}"
+                )
+                continue
+
+            if last_time_only:
+                times = [times[-1]]
+
+            for time in times:
+                try:
+                    current_value = self.get_field_at(source, field_name, time)
+                except KeyError:
+                    logger.info(
+                        f"Line {self.name}: skipping missing field {field_name!r} "
+                        f"at time {time} for source {source!r}"
+                    )
+                    continue
+                current_color = get_plot_color(color_counter, colors)
+                label = str(time) if not last_time_only else source
+                plot_entries.append((source, time, current_value, current_color, label))
+                color_counter += 1
+
+        if not plot_entries:
+            logger.info(
+                f"Line {self.name}: no data available for field {field_name!r}; "
+                "skipping plot"
+            )
+            return False
+
+        # Add line positioning only when at least one source has plottable data.
         ax.axvline(
             self.line_position, #type: ignore
             color="tab:gray",
@@ -238,37 +293,32 @@ class Line:
             linewidth=0.5,
         )
 
-        # Add line data for each source for the current field
-        color_counter = 0   # start color counter
-        self.clear_labels() # make sure to start with empty labels list
-        self.clear_colors() # make sure to start with empty colors list
-
-        for source in self.sources:
-            times = self.get_times(source, field_name)
-
-            if last_time_only:
-                times = [times[-1]]
-
-            for time in times:
-                current_value = self.get_field_at(source, field_name, time)
-                current_color = get_distinct_color(color_counter)
-                x_values = self.line_position + current_value[:, 1] * scale
-                y_values = current_value[:, 0]
+        for _, _, current_value, current_color, label in plot_entries:
+            x_values = self.line_position + current_value[:, 1] * scale
+            y_values = current_value[:, 0]
+            if line_style == "scatter":
                 ax.scatter(
                     x_values,
                     y_values,
                     color=current_color,
                     marker=line_marker,
                 )
-                self.add_color(current_color)
-                self.add_label(str(time) if not last_time_only else source)
-                color_counter += 1
+            else:
+                ax.plot(
+                    x_values,
+                    y_values,
+                    color=current_color,
+                    linestyle='-',
+                    marker=None,
+                )
+            self.add_color(current_color)
+            self.add_label(label)
 
-
-            logger.debug(
-                    f"Line {self.name}: plotted {len(times)} time steps "
-                    f"[{source!r} -> {field_name!r}]"
-            )
+        logger.debug(
+            f"Line {self.name}: plotted {len(plot_entries)} entries "
+            f"for {field_name!r}"
+        )
+        return True
 
     # --- Properties --- #
     @property
@@ -322,4 +372,3 @@ class Line:
     def labels(self) -> List[str]:
         """Labels for the line."""
         return self._labels
-

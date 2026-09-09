@@ -1,4 +1,5 @@
-from typing import cast, List, Optional, Tuple
+from typing import cast, List, Optional, Sequence, Tuple
+from warnings import catch_warnings, simplefilter
 from math import ceil
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
@@ -14,11 +15,34 @@ import numpy as np
 from ..core import (
     PlaneSet,
     Plane,
+    Color,
     connect_save_event,
     append_index_to_filename,
 
 )
 from .utils import DefaultValues, PlotConstants, logger
+
+
+def _display_available() -> bool:
+    return environ.get("DISPLAY") is not None
+
+
+def _show_plot_without_saving() -> None:
+    if not _display_available():
+        logger.info("No display available; plot was not shown or saved.")
+        return
+
+    try:
+        with catch_warnings(record=True) as caught_warnings:
+            simplefilter("always", UserWarning)
+            plt.show()
+    except UserWarning as e:
+        logger.warning(f"Error showing plot: {e}")
+        return
+
+    for warning in caught_warnings:
+        if issubclass(warning.category, UserWarning):
+            logger.warning(f"Error showing plot: {warning.message}")
 
 
 def create_plots(
@@ -34,9 +58,12 @@ def create_plots(
     max_height: float = PlotConstants.FIGURE_MAXHEIGHT,
     min_lines_per_plane: int = DefaultValues.MIN_LINES_PER_PLANE,
     scale_factor: float = DefaultValues.FIELD_SCALE,
+    line_style: str = "scatter",
+    colors: Optional[Sequence[Color]] = None,
     x_limit: Optional[Tuple[float, float]] = DefaultValues.XLIM,
     y_limit: Optional[Tuple[float, float]] = DefaultValues.YLIM,
     z_limit: Optional[Tuple[float, float]] = DefaultValues.ZLIM,
+    no_save: bool = False,
 
 ) -> None:
     """
@@ -56,10 +83,15 @@ def create_plots(
         last_timestep_only (bool): If True, plot only the last timestep data for
             each simulation data.
         interactive (bool): If True, enable interactive features like widgets.
+        no_save (bool): If True, do not save plots automatically.
         plot_hsize (optional, float): Width of the figure in inches.
         plot_vsize (optional, float): Height of the figure in inches.
         max_columns (optional, int): Number of columns in the plot layout.
         max_height (optional, float): Maximum height of the figure in inches.
+        line_style (optional, str): Simulation line style, either 'scatter' or
+            'line'.
+        colors (optional): Sequence of RGB colors to cycle through for
+            simulation profiles.
 
     """
     plottable_planes = planes.filter_planes_by_data(min_lines_per_plane)
@@ -77,6 +109,7 @@ def create_plots(
             plane_set=plane_set,
             base_path=file_path,
             save_only=save_only,
+            no_save=no_save,
             last_timestep_only=last_timestep_only,
             interactive=interactive,
             geometry=geometry,
@@ -85,6 +118,8 @@ def create_plots(
             max_columns=max_columns,
             max_height=max_height,
             scale_factor=scale_factor,
+            line_style=line_style,
+            colors=colors,
             x_limit=x_limit,
             y_limit=y_limit,
             z_limit=z_limit,
@@ -98,6 +133,8 @@ def _create_interactive_slider(
     fields: List[str],
     n_fields: int,
     last_timestep_only: bool,
+    line_style: str,
+    colors: Optional[Sequence[Color]],
 ) -> None:
     ax_slider = fig.add_axes(PlotConstants.SLIDER_POSITION)
     slider = Slider(
@@ -127,6 +164,8 @@ def _create_interactive_slider(
                     field_name=field_name,
                     last_timestep_only=last_timestep_only,
                     scale=scale,
+                    line_style=line_style,
+                    colors=colors,
                 )
 
     slider.on_changed(update)
@@ -222,6 +261,8 @@ def _plot_plane_set(
     last_timestep_only: bool,
     geometry: Optional[Path],
     scale: float,
+    line_style: str,
+    colors: Optional[Sequence[Color]],
     xlimit: Optional[Tuple[float, float]],
     ylimit: Optional[Tuple[float, float]],
     zlimit: Optional[Tuple[float, float]]
@@ -243,7 +284,9 @@ def _plot_plane_set(
                 ax=current_ax,
                 field_name=field_name,
                 last_timestep_only=last_timestep_only,
-                scale=scale
+                scale=scale,
+                line_style=line_style,
+                colors=colors,
             )
 
             _set_limits(current_ax, plane.normal, xlimit, ylimit, zlimit)
@@ -256,6 +299,7 @@ def _plot_tagged_plane_set(
     plane_set: PlaneSet,
     base_path: Path,
     save_only: bool,
+    no_save: bool,
     last_timestep_only: bool,
     interactive: bool,
     geometry: Optional[Path],
@@ -264,6 +308,8 @@ def _plot_tagged_plane_set(
     max_columns: int,
     max_height: float,
     scale_factor: float,
+    line_style: str,
+    colors: Optional[Sequence[Color]],
     x_limit: Optional[Tuple[float, float]],
     y_limit: Optional[Tuple[float, float]],
     z_limit: Optional[Tuple[float, float]],
@@ -303,6 +349,8 @@ def _plot_tagged_plane_set(
             last_timestep_only=last_timestep_only,
             geometry=geometry,
             scale=scale_factor,
+            line_style=line_style,
+            colors=colors,
             xlimit=x_limit,
             ylimit=y_limit,
             zlimit=z_limit,
@@ -317,12 +365,18 @@ def _plot_tagged_plane_set(
                 fields=list(plane_set.fields),
                 n_fields=n_fields,
                 last_timestep_only=last_timestep_only,
+                line_style=line_style,
+                colors=colors,
             )
         else:
             fig.tight_layout()
 
         current_path = append_index_to_filename(
             base_path, start // subplots_per_fig)
+
+        if no_save:
+            _show_plot_without_saving()
+            continue
 
         if save_only or environ.get("DISPLAY") is None:
             fig.savefig(current_path)

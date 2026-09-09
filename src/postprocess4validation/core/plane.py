@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
-from typing import Dict, Set, List, Iterable, Iterator, Tuple
+from typing import Dict, Set, List, Iterable, Iterator, Optional, Sequence, Tuple
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 from numpy import ndarray, asarray
 
 from .point_data import PointData
 from .line import Line
+from .visualization import Color
 from .utils import logger, Info, DefaultValues
 
 
@@ -202,6 +203,8 @@ class Plane(Iterable[Line]):
         last_timestep_only: bool,
         scale: float,
         line_marker: str = '.',
+        line_style: str = "scatter",
+        colors: Optional[Sequence[Color]] = None,
         possible_characters: Set = Info.SUPPORTED_CHARACTERS
     ) -> None:
         """
@@ -218,31 +221,42 @@ class Plane(Iterable[Line]):
             ax.set_xlabel(self.tag[0])
             ax.set_ylabel(self.tag[1])
 
-        def _add_line_points(_line: Line) -> None:
+        experiment_points_plotted = False
+
+        def _add_line_points(_line: Line) -> bool:
             """
             Due to construction of Plane objects field values are plotted on
             first axis, so we shift position and apply scale parameter to that
             axis (indicated by the plane tag)
             """
+            points_with_values = []
+            for point in _line.points:
+                try:
+                    field_value = point.get_field_value(
+                        field_name, DefaultValues.DEFAULT_TIME_FOR_DATASET)
+                except KeyError:
+                    continue
+                points_with_values.append((point, field_value))
+
+            if not points_with_values:
+                logger.info(
+                    f"Plane {self.tag}@{self.fixed_coord}: skipping experiment "
+                    f"points for missing field {field_name!r} on line {_line.name}"
+                )
+                return False
+
             points_first_coordinates = asarray([
-                getattr(point, self.tag[0].lower()) for point in _line.points
+                getattr(point, self.tag[0].lower())
+                for point, _ in points_with_values
             ])
             points_second_coordinates = asarray([
-                getattr(point, self.tag[1].lower()) for point in _line.points
+                getattr(point, self.tag[1].lower())
+                for point, _ in points_with_values
             ])
-
-            try:
-                scaled_field = asarray([
-                    point.get_field_value(
-                        field_name, DefaultValues.DEFAULT_TIME_FOR_DATASET)
-                    for point in _line.points
-                ]) * scale
-                points_first_coordinates += scaled_field
-            except KeyError:
-                logger.warning(
-                    f"Field {field_name!r} not found in points of "
-                    f"{self.tag}@{self.fixed_coord}"
-                )
+            scaled_field = asarray([
+                field_value for _, field_value in points_with_values
+            ]) * scale
+            points_first_coordinates += scaled_field
 
             ax.scatter(
                 points_first_coordinates,
@@ -254,14 +268,25 @@ class Plane(Iterable[Line]):
                 f"Line {_line.name}: added {len(_line.points)}"
                 f" points data [{field_name!r}]"
             )
+            return True
 
         def _add_lines_and_points() -> None:
+            nonlocal experiment_points_plotted
             for line in self:
                 if line.has_data():
-                    line.add_to_plot(
-                        ax, field_name, last_timestep_only, line_marker, scale
+                    line_was_plotted = line.add_to_plot(
+                        ax,
+                        field_name,
+                        last_timestep_only,
+                        line_marker,
+                        scale,
+                        line_style,
+                        colors,
                     )
-                    _add_line_points(line)
+                    if line_was_plotted:
+                        experiment_points_plotted = (
+                            _add_line_points(line) or experiment_points_plotted
+                        )
 
             logger.debug(
                 f"Plane {self.tag}@{self.fixed_coord}: added "
@@ -274,7 +299,8 @@ class Plane(Iterable[Line]):
             The answer is no: a line store all values from all sources so each line
             should retain a map s.t. colors -> labels
             """
-            legend_data: Dict[Tuple, str] = {}
+            legend_data: List[Tuple[Tuple, str]] = []
+            seen_entries: Set[Tuple[Tuple, str]] = set()
             for line in self:
                 if len(line.colors) != len(line.labels):
                     raise ValueError(
@@ -282,23 +308,34 @@ class Plane(Iterable[Line]):
                         f"lengths: {len(line.colors)} vs {len(line.labels)}."
                     )
                 for color, label in zip(line.colors, line.labels):
-                    legend_data.setdefault(color, label)
+                    entry = (color, label)
+                    if entry in seen_entries:
+                        continue
+                    seen_entries.add(entry)
+                    legend_data.append(entry)
 
             legend_handles: List[Line2D] = []
             legend_labels: List[str] = []
 
-            # Add scatter handle for 'Experiment' values
-            scatter_handle = Line2D(
-                [], [], color='black', marker='x', linestyle='None'
-            )
-            legend_handles.append(scatter_handle)
-            legend_labels.append('Experiment')
+            if experiment_points_plotted:
+                scatter_handle = Line2D(
+                    [], [], color='black', marker='x', linestyle='None'
+                )
+                legend_handles.append(scatter_handle)
+                legend_labels.append('Experiment')
 
             # Add line handles for each unique color and label
-            for color, label in legend_data.items():
-                color_handle = Line2D(
-                    [], [], color=color, linestyle='dotted'
-                )
+            for color, label in legend_data:
+                if line_style == "scatter":
+                    color_handle = Line2D(
+                        [],
+                        [],
+                        color=color,
+                        marker=line_marker,
+                        linestyle='None',
+                    )
+                else:
+                    color_handle = Line2D([], [], color=color, linestyle='-')
                 legend_handles.append(color_handle)
                 legend_labels.append(label)
 

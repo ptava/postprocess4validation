@@ -22,6 +22,8 @@ from postprocess4validation.core import (
     get_time_subfolders,
     get_latest_time_subfolder,
     filter_postProcessing,
+    get_plot_color,
+    parse_color,
     PlaneSet,
     DataSet,
     PointData,
@@ -349,6 +351,23 @@ class TestWrapperPaths:
             output_path(str(tmp_path / "missing_dir" / "out.csv"))
 
 
+class TestPlotColors:
+    def test_parse_color_accepts_names_and_hex_values(self):
+        assert parse_color("red") == (1.0, 0.0, 0.0)
+        assert parse_color("#00ff00") == (0.0, 1.0, 0.0)
+
+    def test_parse_color_rejects_invalid_values(self):
+        with pytest.raises(ArgumentTypeError):
+            parse_color("not-a-color")
+
+    def test_get_plot_color_cycles_user_sequence(self):
+        colors = [(1.0, 0.0, 0.0), (0.0, 1.0, 0.0)]
+
+        assert get_plot_color(0, colors) == colors[0]
+        assert get_plot_color(1, colors) == colors[1]
+        assert get_plot_color(2, colors) == colors[0]
+
+
 class TestOpenFOAMUtils:
     def test_time_subfolders_and_latest(self, tmp_path):
         pp_dir = tmp_path / "postProcessing" / "probes"
@@ -379,3 +398,25 @@ class TestOpenFOAMUtils:
 
         filtered = filter_postProcessing([keep, drop], ["caseB"])
         assert filtered == [keep]
+
+    def test_filter_post_processing_includes_only_selected_cases(self, tmp_path):
+        keep = tmp_path / "caseA" / "postProcessing"
+        drop = tmp_path / "caseB" / "postProcessing"
+        keep.mkdir(parents=True)
+        drop.mkdir(parents=True)
+
+        filtered = filter_postProcessing([keep, drop], [], ["caseA"])
+        assert filtered == [keep]
+
+    def test_filter_post_processing_include_path_then_exclude(self, tmp_path):
+        keep = tmp_path / "caseA" / "postProcessing"
+        drop = tmp_path / "caseB" / "postProcessing"
+        keep.mkdir(parents=True)
+        drop.mkdir(parents=True)
+
+        filtered = filter_postProcessing(
+            [keep, drop],
+            excluded=[keep.parent],
+            included=[keep.parent, drop.parent],
+        )
+        assert filtered == [drop]

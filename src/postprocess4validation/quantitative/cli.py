@@ -71,6 +71,10 @@ def main() -> int:
         # --- Set up logging --- #
         configure_logger(args.verbose, args.debug)
 
+        if args.save_only and args.no_save:
+            logger.error("--save-only and --no-save cannot be used together.")
+            return 1
+
         # --- Load experiment data --- #
         experiment_loader = args.loader_exp(source="experiment")
         experiment_dataset : DataSet = experiment_loader.load(args.exp_data[0])
@@ -84,17 +88,20 @@ def main() -> int:
         plot3d_file = args.output_dir / FilePaths.PLOT3D_FILENAME
 
 
-        logger.info(f"Initializing output file {statistics_file}")
-        initialise_metrics_file(
-            path = statistics_file,
-            author = args.author,
-            lab = args.lab,
-            school = args.school,
-        )
+        if args.no_save:
+            logger.info("No-save mode enabled; skipping statistics file output.")
+        else:
+            logger.info(f"Initializing output file {statistics_file}")
+            initialise_metrics_file(
+                path = statistics_file,
+                author = args.author,
+                lab = args.lab,
+                school = args.school,
+            )
 
         # --- Initialize plots requirements --- #
         plot_flag = False
-        data2D = define_2Dplot_storage() 
+        data2D = define_2Dplot_storage(colors=args.colors)
         data3d = define_3Dplot_storage(experiment_dataset)
 
         # --- Optional datasets comparison --- #
@@ -108,6 +115,7 @@ def main() -> int:
                 data_storage_3D=data3d,
                 data_paths=args.exp_data[1:],
                 digits=args.digits,
+                write_output=not args.no_save,
             )
 
         # -- Run analysis --- #
@@ -121,10 +129,11 @@ def main() -> int:
             sim_paths = filter_postProcessing(
                 find_postProcessing(),
                 args.exclude or [],
+                args.include,
             )
             if not sim_paths and len(args.exp_data) == 1:
                 logger.error(
-                    "No postProcessing directories found after exclusions."
+                    "No postProcessing directories found after filters. "
                     "Use --single to specify a path."
                 )
                 return 1
@@ -144,6 +153,7 @@ def main() -> int:
                     time=args.time_folder,
                     start_time=args.start_time,
                     digits=args.digits,
+                    write_output=not args.no_save,
                 )
             except Exception as e:
                 logger.error(f"Unexpected error during quantitative analysis: {e}")
@@ -157,12 +167,14 @@ def main() -> int:
             file_path=plot2D_file,
             save_only=args.save_only,
             interactive=args.interactive,
+            no_save=args.no_save,
         )
         create_3Dplot(
             data_storage=data3d,
             file_path=plot3d_file,
             save_only=args.save_only,
             geometry=args.stl,
+            no_save=args.no_save,
         )
             
         logger.info("Plotting completed successfully.")

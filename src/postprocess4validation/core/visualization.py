@@ -1,11 +1,15 @@
+from argparse import ArgumentTypeError
 from functools import lru_cache
+from typing import Optional, Sequence, Tuple
 from numpy import ndarray, zeros
-from matplotlib.colors import hsv_to_rgb
+from matplotlib.colors import hsv_to_rgb, to_rgb
 from matplotlib.figure import Figure
 from matplotlib.ticker import FormatStrFormatter
 from pathlib import Path
 
 from .utils import logger
+
+Color = Tuple[float, float, float]
 
 
 @lru_cache(maxsize=32)
@@ -32,6 +36,33 @@ def get_distinct_color(index: int, h_start: float = 0.5) -> ndarray:
         logger.error(f"Error converting HSV to RGB: {e}")
         set_color = zeros(3, dtype=float)
     return set_color
+
+
+def parse_color(value: str) -> Color:
+    """
+    Parse a Matplotlib-compatible color name or hex value into an RGB tuple.
+    """
+    try:
+        rgb = to_rgb(value)
+    except ValueError as e:
+        raise ArgumentTypeError(
+            f"Invalid color {value!r}. Use a Matplotlib color name or hex value."
+        ) from e
+    return (float(rgb[0]), float(rgb[1]), float(rgb[2]))
+
+
+def get_plot_color(
+    index: int,
+    colors: Optional[Sequence[Color]] = None,
+    h_start: float = 0.5,
+) -> Color:
+    """
+    Return a color from a user sequence, cycling when needed, or generated color.
+    """
+    if colors:
+        return colors[index % len(colors)]
+    generated = get_distinct_color(index, h_start)
+    return (float(generated[0]), float(generated[1]), float(generated[2]))
 
 
 def get_marker(index: int) -> str:

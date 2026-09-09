@@ -7,6 +7,7 @@ from ..core import (
     LoaderRegistry,
     dir_path,
     file_path,
+    parse_color,
     DefaultValues,
 )
 from .utils import FilePaths
@@ -40,6 +41,16 @@ def parser() -> Namespace:
         help=(
             "Exclude simulation cases when auto-detecting multiple runs.\n"
             "Each value can be a case name or a path to the case folder."
+        ),
+    )
+
+    parser.add_argument(
+        "--include",
+        nargs="+",
+        default=None,
+        help=(
+            "Include only these simulation cases when auto-detecting multiple "
+            "runs. Each value can be a case name or a path to the case folder."
         ),
     )
 
@@ -90,6 +101,18 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--colors",
+        "--colours",
+        nargs="+",
+        type=parse_color,
+        default=None,
+        help=(
+            "Predefined 2D plot colors to cycle through. Accepts Matplotlib "
+            "color names or hex values, for example: --colors tab:blue '#d62728'."
+        ),
+    )
+
+    parser.add_argument(
         "--output-dir", "-o",
         type=dir_path,
         required=False,
@@ -136,6 +159,13 @@ def parser() -> Namespace:
         action="store_true",
         default=False,
         help="Save plot to file without displaying it."
+    )
+
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        default=False,
+        help="Do not write output files automatically."
     )
     
     parser.add_argument(

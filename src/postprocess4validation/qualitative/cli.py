@@ -38,6 +38,10 @@ def main() -> int:
         # --- Configure logger --- #
         configure_logger(args.verbose, args.debug)
 
+        if args.save_only and args.no_save:
+            logger.error("--save-only and --no-save cannot be used together.")
+            return 1
+
         # --- Load experiment data --- #
         # TO DO: class implementation to be changed (loader that can pass also
         # input file path and the call load without arguments)
@@ -66,10 +70,11 @@ def main() -> int:
             simulations_data_folders = filter_postProcessing(
                 find_postProcessing(),
                 args.exclude or [],
+                args.include,
             )
             if not simulations_data_folders:
                 logger.error(
-                    "No postProcessing directories found after exclusions."
+                    "No postProcessing directories found after filters. "
                     "Use --single to specify a path."
                 )
                 return 1
@@ -90,11 +95,16 @@ def main() -> int:
             planes=planes,
             file_path=plot_file,
             save_only=args.save_only,
+            no_save=args.no_save,
             last_timestep_only=plot_flag,
             interactive=args.interactive,
             geometry=args.stl,
+            plot_hsize=args.figure_hsize,
+            plot_vsize=args.figure_vsize,
             min_lines_per_plane=args.min_lines,
             scale_factor=args.scale,
+            line_style=args.line_style,
+            colors=args.colors,
             x_limit=args.xlim,
             y_limit=args.ylim,
             z_limit=args.zlim,

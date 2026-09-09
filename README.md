@@ -157,11 +157,20 @@ quantitative-cli --exp path/to/expData.csv
 # Process multiple simulations and exclude one case
 quantitative-cli --exp path/to/expData.csv --exclude caseB
 
+# Process only selected simulations
+quantitative-cli --exp path/to/expData.csv --include caseA caseC
+
 # Save plot without displaying
 quantitative-cli --exp path/to/expData.csv --save-only
 
+# Run without writing statistics or plot files
+quantitative-cli --exp path/to/expData.csv --no-save
+
 # Ignore samples before a simulation time
 quantitative-cli --exp path/to/expData.csv --start-time 500
+
+# Use a predefined color sequence for the comparative 2D plot
+quantitative-cli --exp path/to/expData.csv --colors tab:blue tab:orange "#2ca02c"
 
 # Enable interactive lens and add geometru to 3D plot
 quantitative-cli --exp path/to/expData.csv --interactive --stl path/to/geometry.stl
@@ -178,11 +187,23 @@ qualitative-cli --exp path/to/expData.csv
 # Process multiple simulations and exclude one case
 qualitative-cli --exp path/to/expData.csv --exclude caseB
 
+# Process only selected simulations
+qualitative-cli --exp path/to/expData.csv --include caseA caseC
+
 # Save plot without displaying
 qualitative-cli --exp path/to/expData.csv --save-only
 
+# Run without writing plot files
+qualitative-cli --exp path/to/expData.csv --no-save
+
 # Ignore simulation time folders before a threshold
 qualitative-cli --exp path/to/expData.csv --start-time 500
+
+# Draw simulation profiles as continuous lines instead of scatter points
+qualitative-cli --exp path/to/expData.csv --line-style line
+
+# Use a predefined color sequence for simulation profiles
+qualitative-cli --exp path/to/expData.csv --colors tab:blue tab:orange "#2ca02c"
 
 # Enable interactive scaling and add geometry sections to 2D plots
 qualitative-cli --exp path/to/expData.csv --interactive --stl path/to/geometry.stl

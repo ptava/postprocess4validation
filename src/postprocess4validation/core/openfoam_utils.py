@@ -21,21 +21,36 @@ def find_postProcessing(start_path=".") -> List[Path]:
 def filter_postProcessing(
     dirs: List[Path],
     excluded: Iterable[str | Path],
+    included: Iterable[str | Path] | None = None,
 ) -> List[Path]:
     """
-    Exclude matching postProcessing directories from a discovered list.
+    Include and exclude matching postProcessing directories from a discovered list.
 
     A value matches when it refers to the case folder name or an explicit path
     to the case folder or the postProcessing folder.
     """
+    included_tokens: set[str] = set()
+    if included is not None:
+        for item in included:
+            path = Path(item)
+            included_tokens.update(_path_tokens(path))
+
     excluded_tokens: set[str] = set()
     for item in excluded:
         path = Path(item)
         excluded_tokens.update(_path_tokens(path))
 
+    filtered_dirs = dirs
+    if included_tokens:
+        filtered_dirs = [
+            directory
+            for directory in filtered_dirs
+            if not _path_tokens(directory).isdisjoint(included_tokens)
+        ]
+
     return [
         directory
-        for directory in dirs
+        for directory in filtered_dirs
         if _path_tokens(directory).isdisjoint(excluded_tokens)
     ]
 

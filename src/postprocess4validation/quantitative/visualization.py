@@ -1,10 +1,11 @@
 from __future__ import annotations
 from os import environ
 from re import compile, IGNORECASE
+from warnings import catch_warnings, simplefilter
 from mplcursors import cursor
 from random import random
 from math import ceil
-from typing import Dict, Any, List, Optional, cast
+from typing import Dict, Any, List, Optional, Sequence, cast
 from pathlib import Path
 from stl import mesh
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
@@ -31,8 +32,9 @@ from numpy import (
 
 from ..core import (
     DataSet,
+    Color,
     CustomFormatStrFormatter,
-    get_distinct_color,
+    get_plot_color,
     get_marker,
     connect_save_event,
     append_index_to_filename,
@@ -46,7 +48,31 @@ from .utils import (
 from .zoom import add_interactive_lens
 
 
-def define_2Dplot_storage() -> Dict[str, Any]:
+def _display_available() -> bool:
+    return environ.get("DISPLAY") is not None
+
+
+def _show_plot_without_saving() -> None:
+    if not _display_available():
+        logger.info("No display available; plot was not shown or saved.")
+        return
+
+    try:
+        with catch_warnings(record=True) as caught_warnings:
+            simplefilter("always", UserWarning)
+            plt.show()
+    except UserWarning as e:
+        logger.warning(f"Error showing plot: {e}")
+        return
+
+    for warning in caught_warnings:
+        if issubclass(warning.category, UserWarning):
+            logger.warning(f"Error showing plot: {warning.message}")
+
+
+def define_2Dplot_storage(
+    colors: Optional[Sequence[Color]] = None,
+) -> Dict[str, Any]:
     """
     Define a custom dictionary to store data for the 2D scatter plot.
     """
@@ -58,6 +84,7 @@ def define_2Dplot_storage() -> Dict[str, Any]:
         "all_vg_vals": [],
         "fields": set(),
         "colors": [],
+        "color_sequence": list(colors) if colors else None,
         "labels": [],
     }
 
@@ -130,9 +157,14 @@ def store_2Dplot_data(
     # Process each time step
     h_start = random()  # Random starting hue for this dataset
 
-    for time_idx, time_key in enumerate(times):
+    for time_key in times:
         # Get color for this time step
-        current_color = get_distinct_color(time_idx, h_start)
+        color_index = len(data_storage["colors"])
+        current_color = get_plot_color(
+            color_index,
+            data_storage.get("color_sequence"),
+            h_start,
+        )
         data_storage["colors"].append(current_color)
 
         # Get data for this time step
@@ -199,7 +231,8 @@ def create_2Dplot(
     save_only: bool,
     interactive: bool,
     plot_margin: float = PlotConstants.MARGIN,
-    linewidth: float = PlotConstants.LINEWIDTH
+    linewidth: float = PlotConstants.LINEWIDTH,
+    no_save: bool = False,
 ) -> None:
     """
     Create a 2D scatter plot in a figure, formatting it, add scatter points,
@@ -215,6 +248,7 @@ def create_2Dplot(
         PlotConstants.MARGIN
     linewidth (float, optional): line width for reference lines, by default
         PlotConstants.LINEWIDTH
+    no_save (bool): if True, do not save the plot automatically
 
     """
     def _format_plot(
@@ -395,6 +429,10 @@ def create_2Dplot(
     # Define the layout and show the plot
     fig.tight_layout()
 
+    if no_save:
+        _show_plot_without_saving()
+        return
+
     # Save or show the figure
     if save_only or environ.get("DISPLAY") is None:
         fig.savefig(file_path)
@@ -461,11 +499,9 @@ def define_3Dplot_storage(
     return {
         'fields': [],               # names of plotted fields
         'fields_values': [],       # field values for each field
+        'coordinates': [],          # point coordinates for each field slab
         'labels': [],               # labels for each field
         'sources': [],               # source of the data (e.g., simulation name)
-        # TODO: why? replace the usage of all coordinates by using pointData 
-        # methods
-        'coordinates': safe_array_conversion(dataset.get_all_coordinates()),
     }
 
 
@@ -495,10 +531,17 @@ def store_3Dplot_data(
 
     for field in fields:
         for time in times:
-            field_values = dataset.get_field_values(field, time)
-            if field_values is None:
-                logger.warning(
-                    f"Field {fields} not found in dataset at time {time}")
+            coordinates = []
+            field_values = []
+            for point in dataset.points:
+                try:
+                    field_values.append(point[field, time])
+                    coordinates.append(point.coordinates)
+                except (KeyError, TypeError):
+                    continue
+
+            if not field_values:
+                logger.warning(f"Field {field} not found in dataset at time {time}")
                 continue
 
             # Store scatter objects and tags for future operations
@@ -512,6 +555,9 @@ def store_3Dplot_data(
             data_storage['fields_values'].append(
                 safe_array_conversion(field_values)
             )
+            data_storage['coordinates'].append(
+                safe_array_conversion(coordinates)
+            )
 
 
 def create_3Dplot(
@@ -520,7 +566,8 @@ def create_3Dplot(
     save_only: bool = False,
     geometry: Optional[Path] = None,
     ncols: int = PlotConstants.MAX_COLS,
-    maxFaces: int = PlotConstants.MAX_STL_FACES
+    maxFaces: int = PlotConstants.MAX_STL_FACES,
+    no_save: bool = False,
 ) -> None:
     """
     Finalize a 3D scatter plot by organizing it into one or more figures
@@ -537,6 +584,7 @@ def create_3Dplot(
         PlotConstants.MAX_COLS
     maxFaces (int): maximum number of faces to render from the STL file, by
         default PlotConstants.MAX_STL_FACES
+    no_save (bool): if True, do not save the plot automatically
     """
 
     def _downscale_stl_vectors(vectors: ndarray, max_faces: int) -> ndarray:
@@ -626,8 +674,8 @@ def create_3Dplot(
             slabs_group,
             labels_group,
             sources_group,
+            coords_group,
             idx,
-            coords,
             field_minmax,
     ) -> None:
         rows = ceil(len(slabs_group) / ncols)
@@ -640,8 +688,8 @@ def create_3Dplot(
 
         grid = GridSpec(rows, ncols, figure=fig)
 
-        for i, (values, label, source) in enumerate(
-                zip(slabs_group, labels_group, sources_group)):
+        for i, (values, label, source, coords) in enumerate(
+                zip(slabs_group, labels_group, sources_group, coords_group)):
             # Get position in the grid and create 3D subplot
             row, col = divmod(i, ncols)
             ax3d = fig.add_subplot(grid[row, col], projection="3d")
@@ -673,6 +721,10 @@ def create_3Dplot(
         # Change the basename of the file path for the current figure
         current_file_path = append_index_to_filename(file_path, idx)
 
+        if no_save:
+            _show_plot_without_saving()
+            return
+
         # Save or show the figure
         if save_only or environ.get("DISPLAY") is None:
             fig.savefig(current_file_path)
@@ -688,7 +740,7 @@ def create_3Dplot(
                 fig.savefig(current_file_path)
 
     # Retrieve data from storage
-    coords: ndarray = data_storage["coordinates"]
+    coordinates: List[ndarray] = data_storage["coordinates"]
     labels: List[str] = data_storage["labels"]
     slabs: List[ndarray] = data_storage["fields_values"]
     sources: List[str] = data_storage["sources"]
@@ -725,11 +777,12 @@ def create_3Dplot(
         group_slabs = slabs[i:i + subplots_per_fig]
         group_labels = labels[i:i + subplots_per_fig]
         group_sources = sources[i:i + subplots_per_fig]
+        group_coordinates = coordinates[i:i + subplots_per_fig]
         _plot_figure(
             group_slabs,
             group_labels,
             group_sources,
+            group_coordinates,
             i // subplots_per_fig,
-            coords,
             field_minmax,
         )

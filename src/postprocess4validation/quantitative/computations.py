@@ -6,7 +6,7 @@ from numpy import (
     any,
     abs as npabs,
 )
-from typing import Dict, List, Optional, Union, KeysView
+from typing import Any, Dict, List, Optional, Tuple, Union, KeysView
 
 from ..core import DataSet, PointData
 from .utils import (
@@ -21,7 +21,8 @@ def store_individual_contribution(
     dataset: DataSet,
     name: str,
     time: float,
-    contributions: ndarray
+    contributions: ndarray,
+    point_coordinates: Optional[List[Tuple[float, float, float]]] = None,
 ) -> None:
     """
     Store individual contributions into the dataset for a specific field and time.
@@ -34,18 +35,121 @@ def store_individual_contribution(
     time (float): the time step at which contributions are being assigned.
     contributions (ndarray): array of contributions to assign.
     """
-    points : List[PointData] = dataset.points
+    if point_coordinates is None:
+        points : List[PointData] = dataset.points
 
-    if len(points) != len(contributions):
-        raise ValueError(
-            f"Size mismatch: points has {len(points)} elements, "
-            f"contributions has {len(contributions)} elements"
-        )
-    for idx, point in enumerate(points):
-        point[name, time] = contributions[idx]
+        if len(points) != len(contributions):
+            raise ValueError(
+                f"Size mismatch: points has {len(points)} elements, "
+                f"contributions has {len(contributions)} elements"
+            )
+        for idx, point in enumerate(points):
+            point[name, time] = contributions[idx]
+    else:
+        if len(point_coordinates) != len(contributions):
+            raise ValueError(
+                f"Size mismatch: coordinates has {len(point_coordinates)} "
+                f"elements, contributions has {len(contributions)} elements"
+            )
+        for idx, coordinates in enumerate(point_coordinates):
+            point = dataset.get_point_by_coordinates(coordinates)
+            if point is None:
+                logger.warning(
+                    f"Skipping contribution for missing point {coordinates} in "
+                    f"{dataset.source} dataset."
+                )
+                continue
+            point[name, time] = contributions[idx]
 
     # Store new field name and units
     dataset.fields[name] = None
+
+
+def _matching_coordinates(
+    dataset_from_exp: DataSet,
+    dataset_from_sim: DataSet,
+) -> List[Tuple[float, float, float]]:
+    exp_coordinates = set(dataset_from_exp.get_all_coordinates())
+    sim_coordinates = dataset_from_sim.get_all_coordinates()
+    sim_coordinates_set = set(sim_coordinates)
+
+    missing_in_exp = [
+        coordinates
+        for coordinates in sim_coordinates
+        if coordinates not in exp_coordinates
+    ]
+    missing_in_sim = [
+        coordinates
+        for coordinates in exp_coordinates
+        if coordinates not in sim_coordinates_set
+    ]
+
+    if missing_in_exp:
+        logger.warning(
+            f"Skipping {len(missing_in_exp)} simulation probe point(s) without "
+            "matching experiment coordinates."
+        )
+    if missing_in_sim:
+        logger.warning(
+            f"Skipping {len(missing_in_sim)} experiment point(s) without "
+            "matching simulation probe coordinates."
+        )
+
+    matching = [
+        coordinates
+        for coordinates in sim_coordinates
+        if coordinates in exp_coordinates
+    ]
+    if not matching:
+        raise ValueError(
+            "No matching point coordinates found between experiment and "
+            "simulation datasets."
+        )
+    return matching
+
+
+def _aligned_field_values(
+    dataset_from_exp: DataSet,
+    dataset_from_sim: DataSet,
+    field_name: str,
+    time: float,
+    coordinates: List[Tuple[float, float, float]],
+) -> Tuple[List[Tuple[float, float, float]], List[Any], List[Any]]:
+    matched_coordinates = []
+    experiment_values = []
+    prediction_values = []
+
+    for coordinate in coordinates:
+        exp_point = dataset_from_exp.get_point_by_coordinates(coordinate)
+        sim_point = dataset_from_sim.get_point_by_coordinates(coordinate)
+        if exp_point is None or sim_point is None:
+            logger.warning(
+                f"Skipping coordinate {coordinate} for field {field_name}: "
+                "point missing in one dataset."
+            )
+            continue
+        try:
+            experiment_value = exp_point[field_name, 0]
+        except (KeyError, TypeError):
+            logger.warning(
+                f"Skipping coordinate {coordinate}: experiment field "
+                f"{field_name!r} is missing at time 0."
+            )
+            continue
+        try:
+            prediction_value = sim_point[field_name, time]
+        except (KeyError, TypeError):
+            logger.warning(
+                f"Skipping coordinate {coordinate}: simulation field "
+                f"{field_name!r} is missing at time {time}."
+            )
+            continue
+
+        matched_coordinates.append(coordinate)
+        experiment_values.append(experiment_value)
+        prediction_values.append(prediction_value)
+
+    return matched_coordinates, experiment_values, prediction_values
 
 
 def compute_metrics(
@@ -135,42 +239,34 @@ def compute_metrics(
         and dataset_from_sim.source.lower() != "experiment":
         raise ValueError("At least one dataset must have 'experiment' as its source.")
 
-    # Get dataset points coordinates
-    points_coordinates = dataset_from_sim.get_all_coordinates()
+    # Get dataset points coordinates that are available in both datasets.
+    points_coordinates = _matching_coordinates(dataset_from_exp, dataset_from_sim)
     if not points_coordinates:
-        raise ValueError("No valid coordinates found in the simulation dataset")
+        raise ValueError("No matching coordinates found between datasets")
 
     # Initialize results dictionary
     results = {}
     
-    # Pre-fetch experiment data for all fields to reduce redundant calls
-    experiment_data_cache = {}
-    for f in common_fields:
-        try:
-            experiment_data_cache[f] = dataset_from_exp.get_field_values(
-                field_name=f, time=0, point_coordinates=points_coordinates
-            )
-            logger.debug(f"Cached experiment data for field {f}: {len(experiment_data_cache[f])} points")
-        except Exception as e:
-            logger.warning(f"Could not fetch experiment data for field {f}: {e}")
-            experiment_data_cache[f] = None
-
     # Process each field and time
     for f in common_fields:
-        if experiment_data_cache[f] is None or len(experiment_data_cache[f]) == 0:
-            logger.warning(f"Skipping field {f} due to missing experiment data")
-            continue
-            
-        experiment = experiment_data_cache[f]
-        
         for t in time_values:
             try:
-                predictions = dataset_from_sim.get_field_values(field_name=f, time=t)
+                (
+                    matched_coordinates,
+                    experiment,
+                    predictions,
+                ) = _aligned_field_values(
+                    dataset_from_exp=dataset_from_exp,
+                    dataset_from_sim=dataset_from_sim,
+                    field_name=f,
+                    time=t,
+                    coordinates=points_coordinates,
+                )
                 
-                if len(predictions) == 0:
+                if len(predictions) == 0 or len(experiment) == 0:
                     logger.warning(
                         f"Skipping time {t} for field {f} due to missing "
-                        "simulation data"
+                        "matched experiment/simulation data"
                     )
                     continue
                 
@@ -180,7 +276,8 @@ def compute_metrics(
                     dataset_from_sim, 
                     f"{MetricNames.NRE}_{f}", 
                     t, 
-                    relative_errrors
+                    relative_errrors,
+                    point_coordinates=matched_coordinates,
                 )
 
                 # Compute statistical metrics
@@ -365,4 +462,3 @@ def _compute_geometric_variance(
     result = exp(npmean(log_ratio ** 2))
     
     return float(result)
-

@@ -6,6 +6,7 @@ from ..core import (
     LoaderKind,
     file_path,
     dir_path,
+    parse_color,
     Info,
     DefaultValues as core_defaults,
 )
@@ -42,6 +43,28 @@ def parser() -> Namespace:
         help=(
             "Specify the scale factor to apply to the field data.\n"
             f"Default is {DefaultValues.FIELD_SCALE}."
+        ),
+    )
+
+    parser.add_argument(
+        "--line-style",
+        choices=["scatter", "line"],
+        default="scatter",
+        help=(
+            "Style used for simulation line profiles: scatter points or "
+            "continuous lines. Default is scatter."
+        ),
+    )
+
+    parser.add_argument(
+        "--colors",
+        "--colours",
+        nargs="+",
+        type=parse_color,
+        default=None,
+        help=(
+            "Predefined simulation colors to cycle through. Accepts Matplotlib "
+            "color names or hex values, for example: --colors tab:blue '#d62728'."
         ),
     )
 
@@ -89,6 +112,16 @@ def parser() -> Namespace:
         help=(
             "Exclude simulation cases when auto-detecting multiple runs.\n"
             "Each value can be a case name or a path to the case folder."
+        ),
+    )
+
+    parser.add_argument(
+        "--include",
+        nargs="+",
+        default=None,
+        help=(
+            "Include only these simulation cases when auto-detecting multiple "
+            "runs. Each value can be a case name or a path to the case folder."
         ),
     )
 
@@ -175,6 +208,13 @@ def parser() -> Namespace:
         action="store_true",
         default=False,
         help="Save plot to file without displaying it."
+    )
+
+    parser.add_argument(
+        "--no-save",
+        action="store_true",
+        default=False,
+        help="Do not write plot files automatically."
     )
 
     parser.add_argument(

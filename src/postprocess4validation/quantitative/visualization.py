@@ -111,19 +111,18 @@ def store_2Dplot_data(
     last_time_only (bool, optional): if True, only plot metrics for the last
     time step, by default False
 
+    Comparisons without MG/GV are skipped, including when the latest time
+    has no geometric metrics. Earlier valid times are not substituted.
+
     Raises
     ------
-    ValueError: if required metrics are missing or invalid
+    ValueError: if supplied geometric metric dictionaries are empty or invalid
     """
     logger.info(f"Storing data for plot from source: {source}")
 
     if MetricNames.MG not in statistics or MetricNames.GV not in statistics:
-        logger.error(
-            f"Required metrics missing: {MetricNames.MG} or {MetricNames.GV} "
-            "not found in statistics")
-        raise ValueError(
-            f"Cannot fill plot: '{MetricNames.MG}' or '{MetricNames.GV}' not "
-            "found in statistics.")
+        logger.info(f"Skipping MG/GV plot data for {source}: metrics unavailable.")
+        return
 
     mg_data = statistics[MetricNames.MG]
     vg_data = statistics[MetricNames.GV]
@@ -139,7 +138,11 @@ def store_2Dplot_data(
 
     if last_time_only and times:
         logger.info("Using only the last time step")
-        times = [times[-1]]
+        latest_time = max(time for values in statistics.values() for time in values)
+        if latest_time not in mg_data or latest_time not in vg_data:
+            logger.info(f"Skipping MG/GV plot data for {source} at {latest_time}.")
+            return
+        times = [latest_time]
 
     # Figure out which fields exist
     all_fields = data_storage["fields"]
@@ -475,9 +478,7 @@ def find_matching_fields(
     logger.debug(f"Found {len(matching)} fields matching '{name}'")
 
     if not matching:
-        msg = f"No fields found matching '{name}' in the dataset"
-        logger.error(msg)
-        raise ValueError(msg)
+        logger.info(f"No fields found matching '{name}' in the dataset")
     return matching
 
 

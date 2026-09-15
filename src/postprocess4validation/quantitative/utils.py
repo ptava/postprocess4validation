@@ -23,6 +23,7 @@ getLogger('matplotlib.ticker').setLevel(CRITICAL)
 
 class MetricNames:
     """Names of metrics used in quantitative analysis."""
+    RMSE = "RMSE"  # Root Mean Square Error
     NMSE = "NMSE"  # Normalized Mean Squared Error
     MG = "MG"      # Mean Geometric Bias
     GV = "GV"      # Geometric Variance
@@ -31,7 +32,7 @@ class MetricNames:
     @classmethod
     def get_all(cls) -> List[str]:
         """Return a list of all metric names."""
-        return [cls.NMSE, cls.MG, cls.GV]
+        return [cls.RMSE, cls.NMSE, cls.MG, cls.GV]
 
 class PlotConstants:
     """Constants related to plotting and visualization."""
@@ -162,4 +163,3 @@ def setup_logging(
             logger.info(f"Logging to file: {log_path}")
         except Exception as e:
             logger.error(f"Failed to set up file logging: {e}")
-

@@ -1,6 +1,6 @@
 from typing import Union, Optional, Dict, Tuple
 from datetime import datetime
-from csv import writer
+from csv import reader, writer
 from getpass import getuser
 from importlib import metadata
 from pathlib import Path
@@ -100,15 +100,16 @@ def write_metrics(
         if last_time_only:
             time_values = [time_values[-1]]  # Keep only the latest time value
 
-        # Extract field names dynamically
-        first_metric = next(iter(metrics_dict))
-        first_time = next(iter(metrics_dict[first_metric]))
-        field_names = metrics_dict[first_metric][first_time].keys()
-
-        # Create table headers
-        table_header = ["Id"] + [
-            f"{metric}-{field}" for metric in metrics_dict for field in field_names
+        # A metric may be unavailable for individual fields or time steps.
+        columns = [
+            (metric, field)
+            for metric, values_by_time in metrics_dict.items()
+            for field in sorted({
+                field for time in time_values
+                for field in values_by_time.get(time, {})
+            })
         ]
+        table_header = ["Id"] + [f"{metric}-{field}" for metric, field in columns]
 
         # Prepare data rows
         data_rows = []
@@ -117,10 +118,9 @@ def write_metrics(
                 row = [identifier]  # Use the passed identifier
             else:
                 row = [time]
-            for metric in metrics_dict:
-                for field in metrics_dict[metric][time]:
-                    value = metrics_dict[metric][time][field]
-                    row.append(round(value, decimal_places))
+            for metric, field in columns:
+                value = metrics_dict[metric].get(time, {}).get(field)
+                row.append("" if value is None else round(value, decimal_places))
             data_rows.append(row)
     except (KeyError, TypeError, ValueError, IndexError) as e:
         logger.error(f"Error processing metrics data: {e}")
@@ -131,10 +131,10 @@ def write_metrics(
             write_header = True
             file_writer = writer(file)
             with open(path, "r") as existing_file:
-                write_header = not any(
-                    line.strip() == ",".join(table_header)
-                    for line in existing_file
-                )
+                existing_headers = [
+                    row for row in reader(existing_file) if row and row[0] == "Id"
+                ]
+                write_header = not existing_headers or existing_headers[-1] != table_header
             if write_header:
                 logger.debug(f"Writing header to {path}")
                 file_writer.writerow(table_header)

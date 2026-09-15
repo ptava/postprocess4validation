@@ -103,11 +103,12 @@ def main() -> int:
         plot_flag = False
         data2D = define_2Dplot_storage(colors=args.colors)
         data3d = define_3Dplot_storage(experiment_dataset)
+        has_results = False
 
         # --- Optional datasets comparison --- #
         if len(args.exp_data) > 1:
             logger.info("Comparing additional datasets against reference")
-            run_datasets_comparison(
+            comparison_results = run_datasets_comparison(
                 file_loader=args.loader_exp,
                 output_file=statistics_file,
                 ref_dataset=experiment_dataset,
@@ -117,6 +118,7 @@ def main() -> int:
                 digits=args.digits,
                 write_output=not args.no_save,
             )
+            has_results = bool(comparison_results)
 
         # -- Run analysis --- #
         sim_paths: List[Path]
@@ -155,27 +157,38 @@ def main() -> int:
                     digits=args.digits,
                     write_output=not args.no_save,
                 )
+                has_results = True
             except Exception as e:
                 logger.error(f"Unexpected error during quantitative analysis: {e}")
 
-        # Finalize plots
+        if not has_results:
+            logger.error("No valid quantitative results were produced.")
+            return 1
+
+        # Finalize only plots with meaningful data.
         logger.info("Processing completed, finalizing plots... ")
         
         # Finalise the plots (show or save)
-        create_2Dplot(
-            data_storage=data2D,
-            file_path=plot2D_file,
-            save_only=args.save_only,
-            interactive=args.interactive,
-            no_save=args.no_save,
-        )
-        create_3Dplot(
-            data_storage=data3d,
-            file_path=plot3d_file,
-            save_only=args.save_only,
-            geometry=args.stl,
-            no_save=args.no_save,
-        )
+        if data2D["all_mg_vals"]:
+            create_2Dplot(
+                data_storage=data2D,
+                file_path=plot2D_file,
+                save_only=args.save_only,
+                interactive=args.interactive,
+                no_save=args.no_save,
+            )
+        else:
+            logger.info("Skipping MG/GV plot: no valid geometric metrics.")
+        if data3d["fields_values"]:
+            create_3Dplot(
+                data_storage=data3d,
+                file_path=plot3d_file,
+                save_only=args.save_only,
+                geometry=args.stl,
+                no_save=args.no_save,
+            )
+        else:
+            logger.info("Skipping relative-error plots: no defined relative errors.")
             
         logger.info("Plotting completed successfully.")
         return 0

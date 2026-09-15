@@ -22,7 +22,7 @@ Be aware that certain solutions may seem overly complicated or suboptimal. Contr
 ## Features
 
 ### 1. Quantitative Analysis:
-- Computes statistical metrics such as Normalised Mean Squared Error (NMSE), Geometric Mean Bias (MG), and Geometric Variance (GV) based on point-wise experimental data and OpenFOAM probes sampling
+- Computes Root Mean Square Error (RMSE), Normalised Mean Squared Error (NMSE), Geometric Mean Bias (MG), and Geometric Variance (GV) based on point-wise experimental data and OpenFOAM probes sampling
 - Compares multiple simulation setups with interactive visualization
 - Outputs statistical metrics values and representative plots for each field available
 - 2D log-log plot MG vs. GV
@@ -45,6 +45,16 @@ Be aware that certain solutions may seem overly complicated or suboptimal. Contr
         tM, field0, field1, ..., fieldN
 
 Quantitative comparison of experimental and model results are performed using the following statistical performance measures, where $P_i$ is the model prediction, and $O_i$ is the observed value:
+
+#### <u>Root mean square error</u> ($RMSE$)
+
+RMSE measures the typical error magnitude in the field's original units and is zero for a perfect match. It supports positive, negative, and zero values.
+
+$$
+RMSE = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(O_i-P_i)^2}
+$$
+
+RMSE is written to `statistics.csv` for each matched field and timestep. If any matched observation or prediction is negative, that field/timestep produces only RMSE and pointwise relative errors: NMSE, MG, and GV are omitted. Other field/timestep comparisons retain their applicable metrics. Unavailable entries are left blank in CSV tables, and MG/GV plots include only valid geometric metrics. If none are available, the MG/GV plot is skipped and relative-error plotting continues.
 
 #### <u>Geometric mean bias</u> ($MG$)
 
@@ -85,6 +95,8 @@ A local measure of the relative difference between predicted and observed values
 $$
     NRE_i = \left| \frac{P_i - O_i}{O_i} \right|
 $$
+
+Negative reference values are supported. When $O_i=0$, relative error is undefined: the point is omitted from relative-error plots with a warning, but remains included in RMSE. If every reference is zero, no relative-error plot is generated. MG and GV require strictly positive inputs; NMSE also requires nonzero means. The existing `--no-save` option suppresses both statistics and plot files.
 
 ## 2. Qualitative analysis
 - Detects and plots lines and planes based on point-wise experimental data and OpenFOAM lines sampling

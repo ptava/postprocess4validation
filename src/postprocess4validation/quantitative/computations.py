@@ -1,10 +1,13 @@
-from math import exp
+from math import exp, sqrt
 from numpy import (
     mean as npmean,
     ndarray, 
     log as nplog, 
     any,
     abs as npabs,
+    divide,
+    full_like,
+    isfinite,
 )
 from typing import Any, Dict, List, Optional, Tuple, Union, KeysView
 
@@ -162,15 +165,18 @@ def compute_metrics(
     Compute statistical metrics for comparing experiment and simulation 
     datasets.
     
-    This function computes several metrics (NMSE, MG, GV) for each field at each time.
+    Compute RMSE for each matched field/time comparison. If either input
+    contains negative values, omit NMSE, MG and GV for that comparison.
+    Otherwise also compute those metrics where their denominators/logs allow it.
     The results are stored in a nested dictionary of the form:
         {
+            "RMSE": {time1: {field1: val, field2: val, ...}, time2: {...}, ...},
             "NMSE": {time1: {field1: val, field2: val, ...}, time2: {...}, ...},
             "MG":   {time1: {...}, time2: {...}, ...},
             "GV":   {time1: {...}, time2: {...}, ...},
         }
 
-    Each metric function stores individual point contributions in the dataset.
+    Store pointwise relative errors where the experimental reference is nonzero.
     
     Parameters
     ----------
@@ -198,6 +204,7 @@ def compute_metrics(
     
     # Available metrics
     metrics = {
+        MetricNames.RMSE: _compute_rmse,
         MetricNames.NMSE: _compute_nmse,
         MetricNames.MG:   _compute_mean_bias,
         MetricNames.GV:   _compute_geometric_variance
@@ -270,18 +277,38 @@ def compute_metrics(
                     )
                     continue
                 
-                # Store relative error contributions
-                relative_errrors = _compute_relative_errors(experiment, predictions)
-                store_individual_contribution(
-                    dataset_from_sim, 
-                    f"{MetricNames.NRE}_{f}", 
-                    t, 
-                    relative_errrors,
-                    point_coordinates=matched_coordinates,
-                )
+                experiment = safe_array_conversion(experiment)
+                predictions = safe_array_conversion(predictions)
+                relative_errors = _compute_relative_errors(experiment, predictions)
+                valid_errors = isfinite(relative_errors)
+                if any(experiment == 0):
+                    logger.warning(
+                        f"Omitting relative errors for zero experimental values "
+                        f"in field {f} at time {t}; these points remain in RMSE."
+                    )
+                if any(valid_errors):
+                    store_individual_contribution(
+                        dataset_from_sim,
+                        f"{MetricNames.NRE}_{f}",
+                        t,
+                        relative_errors[valid_errors],
+                        point_coordinates=[
+                            coordinate for coordinate, valid in
+                            zip(matched_coordinates, valid_errors) if valid
+                        ],
+                    )
+
+                has_negative = any(experiment < 0) or any(predictions < 0)
+                if has_negative:
+                    logger.info(
+                        f"Negative values in field {f} at time {t}: computing "
+                        "only RMSE and pointwise relative errors."
+                    )
 
                 # Compute statistical metrics
                 for metric_name, metric_func in metrics.items():
+                    if has_negative and metric_name != MetricNames.RMSE:
+                        continue
                     try:
                         value = metric_func(
                             predictions,
@@ -325,7 +352,7 @@ def _compute_relative_errors(
     
     Returns
     -------
-    ndarray: relative error contributions for each point
+    ndarray: relative errors, with NaN where the experimental reference is zero
     
     Raises
     ------
@@ -334,9 +361,25 @@ def _compute_relative_errors(
     """
     experiment = safe_array_conversion(experiment)
     predictions = safe_array_conversion(predictions)
-    contributions = npabs(experiment - predictions) / npabs(experiment)
+    if experiment.shape != predictions.shape:
+        raise ValueError("Size mismatch between experiment and predictions")
+    contributions = divide(
+        npabs(experiment - predictions), npabs(experiment),
+        out=full_like(experiment, float("nan")), where=experiment != 0,
+    )
 
     return contributions
+
+def _compute_rmse(
+    predictions: Union[List, ndarray],
+    experiment: Union[List, ndarray],
+) -> float:
+    """Root mean square error in the field's units, including signed/zero data."""
+    predictions = safe_array_conversion(predictions)
+    experiment = safe_array_conversion(experiment)
+    if predictions.shape != experiment.shape:
+        raise ValueError("Size mismatch between predictions and experiment")
+    return sqrt(float(npmean((experiment - predictions) ** 2)))
 
 def _compute_nmse(
         predictions: Union[List, ndarray], 

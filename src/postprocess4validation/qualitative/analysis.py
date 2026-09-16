@@ -17,6 +17,7 @@ def run_qualitative_analysis(
     file_loader: Type[FileDataLoader],
     plane_set: PlaneSet,
     start_time: Optional[float] = None,
+    lines_folder: str = FilePaths.LINES_SUBFOLDER,
 ) -> None:
     """
     Run qualitative analysis on simulation data.
@@ -32,6 +33,7 @@ def run_qualitative_analysis(
     file_loader (Type[FileDataLoader]): class to load file
     plane_set (PlaneSet): set of available planes to store data in
     start_time (Optional[float]): Minimum simulation time folder to include
+    lines_folder (str): Name of the lines subfolder inside postProcessing
     """
     for idx, sim_path in enumerate(simulation_paths):
         logger.info(
@@ -44,6 +46,7 @@ def run_qualitative_analysis(
             file_loader=file_loader,
             data_path=sim_path,
             start_time=start_time,
+            lines_folder=lines_folder,
         )
 
 
@@ -53,6 +56,7 @@ def load_data_into_planeset(
     file_loader: Type[FileDataLoader],
     data_path: Path,
     start_time: Optional[float] = None,
+    lines_folder: str = FilePaths.LINES_SUBFOLDER,
 ) -> None:
     """
     Process simulation data using the provided simulation loaders
@@ -63,6 +67,7 @@ def load_data_into_planeset(
     file_loader (Type[FileDataLoader]): class to load file
     data_path (Path): Path to the simulation data directory
     start_time (Optional[float]): Minimum simulation time folder to include
+    lines_folder (str): Name of the lines subfolder inside postProcessing
     """
     # --- Load simulation data --- #
     parent_directory = data_path.resolve().parent.name
@@ -75,7 +80,7 @@ def load_data_into_planeset(
 
     # Configure loader for OpenFOAM data stracture
     if isinstance(loader, OpenFOAMLinesLoader):
-        loader.subfolder = FilePaths.LINES_SUBFOLDER  # type: ignore[arg-type]
+        loader.subfolder = lines_folder  # type: ignore[arg-type]
         loader.plane_set = plane_set  # type: ignore[arg-type]
         loader.start_time = start_time  # type: ignore[arg-type]
 

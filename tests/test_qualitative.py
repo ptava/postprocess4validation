@@ -47,6 +47,7 @@ class TestQualitativeAnalysis:
         monkeypatch,
     ):
         captured_kwargs = {}
+        captured_analysis_kwargs = {}
 
         class FakeExperimentLoader:
             def __init__(self, source):
@@ -70,6 +71,7 @@ class TestQualitativeAnalysis:
             include=None,
             loader_sim=(OpenFOAMLinesLoader, LinesDataLoader),
             start_time=None,
+            lines_folder="wakeLines",
             save_only=True,
             no_save=False,
             interactive=False,
@@ -88,7 +90,7 @@ class TestQualitativeAnalysis:
         monkeypatch.setattr(
             qualitative_cli,
             "run_qualitative_analysis",
-            lambda *args, **kwargs: None,
+            lambda *args, **kwargs: captured_analysis_kwargs.update(kwargs),
         )
 
         def capture_create_plots(**kwargs):
@@ -103,6 +105,7 @@ class TestQualitativeAnalysis:
         assert qualitative_cli.main() == 0
         assert captured_kwargs["plot_hsize"] == 22.0
         assert captured_kwargs["plot_vsize"] == 9.0
+        assert captured_analysis_kwargs["lines_folder"] == "wakeLines"
 
 
 class TestQualitativeTimeFiltering:

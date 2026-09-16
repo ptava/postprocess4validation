@@ -86,6 +86,7 @@ def main() -> int:
             directory_loader=args.loader_sim[0],
             file_loader=args.loader_sim[1],
             start_time=args.start_time,
+            lines_folder=args.lines_folder,
         )
 
         logger.info("Processing completed, generating plots... ")

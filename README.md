@@ -181,6 +181,9 @@ quantitative-cli --exp path/to/expData.csv --no-save
 # Ignore samples before a simulation time
 quantitative-cli --exp path/to/expData.csv --start-time 500
 
+# Read probe data from a custom postProcessing subfolder (default: probes)
+quantitative-cli --exp path/to/expData.csv --probes-folder wakeProbes
+
 # Use a predefined color sequence for the comparative 2D plot
 quantitative-cli --exp path/to/expData.csv --colors tab:blue tab:orange "#2ca02c"
 
@@ -210,6 +213,9 @@ qualitative-cli --exp path/to/expData.csv --no-save
 
 # Ignore simulation time folders before a threshold
 qualitative-cli --exp path/to/expData.csv --start-time 500
+
+# Read line data from a custom postProcessing subfolder (default: lines)
+qualitative-cli --exp path/to/expData.csv --lines-folder wakeLines
 
 # Draw simulation profiles as continuous lines instead of scatter points
 qualitative-cli --exp path/to/expData.csv --line-style line

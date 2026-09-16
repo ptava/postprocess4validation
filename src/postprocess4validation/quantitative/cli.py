@@ -154,6 +154,7 @@ def main() -> int:
                     last_time_only=plot_flag,
                     time=args.time_folder,
                     start_time=args.start_time,
+                    probes_folder=args.probes_folder,
                     digits=args.digits,
                     write_output=not args.no_save,
                 )

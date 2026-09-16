@@ -80,6 +80,7 @@ def run_quantitative_analysis(
     start_time: Optional[float] = None,
     digits: int = DefaultValues.DIGITS,
     write_output: bool = True,
+    probes_folder: str = FilePaths.PROBES_SUBFOLDER,
 ) -> Dict:
     """
     Run quantitative analysis on simulation data.
@@ -106,6 +107,7 @@ def run_quantitative_analysis(
     start_time (Optional[float]): Minimum simulation sample time to include.
     digits (int): Number of decimal places for metrics values in the output file
     write_output (bool): If True, write metrics to the output file
+    probes_folder (str): Name of the probes subfolder inside postProcessing.
 
     Returns
     -------
@@ -125,7 +127,7 @@ def run_quantitative_analysis(
 
         # Configure loader for OpenFOAM data structure
         if isinstance(loader, OpenFOAMProbesLoader):
-            loader.subfolder = FilePaths.PROBES_SUBFOLDER # type: ignore
+            loader.subfolder = probes_folder  # type: ignore
             loader.time = time # type: ignore
             loader.start_time = start_time # type: ignore
         else:

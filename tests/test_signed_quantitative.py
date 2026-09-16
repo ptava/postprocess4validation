@@ -153,7 +153,7 @@ def test_mixed_fields_and_times_write_aligned_csv(tmp_path):
 def test_signed_cli_writes_rmse_and_available_error_plot(
     tmp_path, monkeypatch, observed, predicted, has_plot,
 ):
-    probes = tmp_path / "case" / "postProcessing" / "probes" / "0"
+    probes = tmp_path / "case" / "postProcessing" / "wakeProbes" / "0"
     probes.mkdir(parents=True)
     header = "".join(f"# Probe {i} ({i} 0 0)\n" for i in range(len(observed)))
     (probes / "u").write_text(header + "1 " + " ".join(map(str, predicted)) + "\n")
@@ -164,6 +164,7 @@ def test_signed_cli_writes_rmse_and_available_error_plot(
     monkeypatch.setattr(sys, "argv", [
         "quantitative-cli", "--single", str(probes.parent.parent),
         "--exp-data", str(experiment), "--output-dir", str(tmp_path), "--save-only",
+        "--probes-folder", "wakeProbes",
     ])
     try:
         assert main() == 0

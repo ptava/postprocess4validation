@@ -101,6 +101,16 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--probes-folder",
+        type=str,
+        default=FilePaths.PROBES_SUBFOLDER,
+        help=(
+            "Name of the probes subfolder inside each postProcessing directory.\n"
+            f"Default is '{FilePaths.PROBES_SUBFOLDER}'."
+        ),
+    )
+
+    parser.add_argument(
         "--colors",
         "--colours",
         nargs="+",

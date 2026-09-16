@@ -148,6 +148,16 @@ def parser() -> Namespace:
     )
 
     parser.add_argument(
+        "--lines-folder",
+        type=str,
+        default=FilePaths.LINES_SUBFOLDER,
+        help=(
+            "Name of the lines subfolder inside each postProcessing directory.\n"
+            f"Default is '{FilePaths.LINES_SUBFOLDER}'."
+        ),
+    )
+
+    parser.add_argument(
         "--exp-data", "-e",
         type=file_path,
         required=False,

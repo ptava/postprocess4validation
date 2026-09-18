@@ -531,7 +531,7 @@ def store_3Dplot_data(
     reference_dataset (DataSet): Observations used for relative errors and hover
         information.
     relative_error_threshold (float): Upper relative-error percentage included
-        in the 3D color scale. Larger errors are plotted in black.
+        in the 3D color scale. Larger errors are plotted in red.
 
     """
     if reference_dataset is None:

@@ -69,6 +69,18 @@ def test_cli_cutoff_controls_storage(monkeypatch):
         assert storage["above_threshold"][0].tolist() == expected
 
 
+@pytest.mark.parametrize("flag", ["--help", "-h"])
+def test_cli_help_exits_successfully_with_percentage_cutoff(flag, monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["quantitative-cli", flag])
+    with pytest.raises(SystemExit) as exit_info:
+        parser()
+    assert exit_info.value.code == 0
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "--relative-error-threshold" in help_text
+    assert "200%" in help_text
+    assert "red markers" in help_text
+
+
 @pytest.mark.parametrize("cutoff", [0, -1, float("nan"), float("inf")])
 def test_invalid_cutoff_is_rejected(cutoff, monkeypatch):
     with pytest.raises(ValueError, match="finite positive"):

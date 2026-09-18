@@ -127,8 +127,8 @@ def parser() -> Namespace:
         type=_positive_percentage,
         default=ValidationConstants.RELATIVE_ERROR_THRESHOLD,
         help=(
-            "Show relative errors above this percentage as black markers and "
-            "exclude them from the 3D color scale. Default is 200%."
+            "Show relative errors above this percentage as red markers and "
+            "exclude them from the 3D color scale. Default is 200%%."
         ),
     )
 

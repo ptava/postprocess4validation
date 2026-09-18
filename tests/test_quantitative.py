@@ -188,20 +188,31 @@ class TestMetricsComputation:
     def test_3d_plot_storage_uses_coordinates_with_nre_values(self):
         dataset = DataSet(source="simulation")
         dataset.add_point(
-            PointData((1.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.1}})
+            PointData(
+                (1.0, 0.0, 0.0),
+                {"UMag": {1.0: 1.1}, "NRE_UMag": {1.0: 0.1}},
+            )
         )
         dataset.add_point(
-            PointData((2.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.2}})
+            PointData(
+                (2.0, 0.0, 0.0),
+                {"UMag": {1.0: 1.2}, "NRE_UMag": {1.0: 0.2}},
+            )
         )
         dataset.add_point(
             PointData((3.0, 0.0, 0.0), {"UMag": {1.0: 4.0}})
         )
+        reference = DataSet(source="experiment")
+        reference.add_point(PointData((1.0, 0.0, 0.0), {"UMag": 1.0}))
+        reference.add_point(PointData((2.0, 0.0, 0.0), {"UMag": 1.0}))
         data_storage = define_3Dplot_storage(dataset)
 
-        store_3Dplot_data(dataset, data_storage)
+        store_3Dplot_data(dataset, data_storage, reference_dataset=reference)
 
         assert data_storage["fields"] == ["NRE_UMag"]
-        assert data_storage["fields_values"][0].tolist() == [0.1, 0.2]
+        assert data_storage["fields_values"][0].tolist() == pytest.approx(
+            [10.0, 20.0]
+        )
         assert data_storage["coordinates"][0].tolist() == [
             [1.0, 0.0, 0.0],
             [2.0, 0.0, 0.0],
@@ -539,13 +550,22 @@ class TestQuantitativeNoSave:
         monkeypatch.delenv("DISPLAY", raising=False)
         dataset = DataSet(source="simulation")
         dataset.add_point(
-            PointData((1.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.1}})
+            PointData(
+                (1.0, 0.0, 0.0),
+                {"UMag": {1.0: 1.1}, "NRE_UMag": {1.0: 0.1}},
+            )
         )
         dataset.add_point(
-            PointData((2.0, 0.0, 0.0), {"NRE_UMag": {1.0: 0.2}})
+            PointData(
+                (2.0, 0.0, 0.0),
+                {"UMag": {1.0: 1.2}, "NRE_UMag": {1.0: 0.2}},
+            )
         )
+        reference = DataSet(source="experiment")
+        reference.add_point(PointData((1.0, 0.0, 0.0), {"UMag": 1.0}))
+        reference.add_point(PointData((2.0, 0.0, 0.0), {"UMag": 1.0}))
         data_storage = define_3Dplot_storage(dataset)
-        store_3Dplot_data(dataset, data_storage)
+        store_3Dplot_data(dataset, data_storage, reference_dataset=reference)
 
         create_3Dplot(
             data_storage=data_storage,

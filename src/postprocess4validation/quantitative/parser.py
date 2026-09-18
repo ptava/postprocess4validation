@@ -1,4 +1,5 @@
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, ArgumentTypeError, Namespace
+from math import isfinite
 from itertools import product
 
 from ..core import (
@@ -10,7 +11,18 @@ from ..core import (
     parse_color,
     DefaultValues,
 )
-from .utils import FilePaths
+from .utils import FilePaths, ValidationConstants
+
+
+def _positive_percentage(value: str) -> float:
+    """Parse a finite positive percentage cutoff."""
+    percentage = float(value)
+    if not isfinite(percentage) or percentage <= 0:
+        raise ArgumentTypeError(
+            "Relative-error threshold must be a finite positive percentage"
+        )
+    return percentage
+
 
 def parser() -> Namespace:
     """
@@ -107,6 +119,16 @@ def parser() -> Namespace:
         help=(
             "Name of the probes subfolder inside each postProcessing directory.\n"
             f"Default is '{FilePaths.PROBES_SUBFOLDER}'."
+        ),
+    )
+
+    parser.add_argument(
+        "--relative-error-threshold",
+        type=_positive_percentage,
+        default=ValidationConstants.RELATIVE_ERROR_THRESHOLD,
+        help=(
+            "Show relative errors above this percentage as black markers and "
+            "exclude them from the 3D color scale. Default is 200%."
         ),
     )
 

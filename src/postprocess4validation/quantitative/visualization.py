@@ -27,7 +27,8 @@ from numpy import (
     log,
     linspace,
     array,
-    ndarray
+    ndarray,
+    isfinite as np_isfinite,
 )
 
 from ..core import (
@@ -39,10 +40,12 @@ from ..core import (
     connect_save_event,
     append_index_to_filename,
 )
+from .computations import _compute_relative_errors
 from .utils import (
     logger,
     PlotConstants,
     MetricNames,
+    ValidationConstants,
     safe_array_conversion
 )
 from .zoom import add_interactive_lens
@@ -503,6 +506,10 @@ def define_3Dplot_storage(
         'coordinates': [],          # point coordinates for each field slab
         'labels': [],               # labels for each field
         'sources': [],               # source of the data (e.g., simulation name)
+        'observations': [],           # observed values for hover information
+        'predictions': [],            # predicted values for hover information
+        'above_threshold': [],        # points above the percentage cutoff
+        'undefined': [],              # points with undefined relative error
     }
 
 
@@ -510,6 +517,8 @@ def store_3Dplot_data(
     dataset: DataSet,
     data_storage: Dict[str, Any],
     last_time_only: bool = False,
+    reference_dataset: Optional[DataSet] = None,
+    relative_error_threshold: float = ValidationConstants.RELATIVE_ERROR_THRESHOLD,
 ) -> None:
     """
     Store data for a 3D scatter plot from the provided dataset.
@@ -519,8 +528,22 @@ def store_3Dplot_data(
     dataset (DataSet): The dataset containing the points and field values.
     data_storage (Dict[str, Any]): The storage dictionary to fill with data.
     last_time_only (bool, optional): If True, only plot the last time step,
+    reference_dataset (DataSet): Observations used for relative errors and hover
+        information.
+    relative_error_threshold (float): Upper relative-error percentage included
+        in the 3D color scale. Larger errors are plotted in black.
 
     """
+    if reference_dataset is None:
+        raise ValueError(
+            "reference_dataset is required to populate 3D plot hover values"
+        )
+
+    if not np_isfinite(relative_error_threshold) or relative_error_threshold <= 0:
+        raise ValueError(
+            "Relative-error threshold must be a finite positive percentage"
+        )
+
     fields = find_matching_fields(dataset)
     data_storage['fields'] = fields     # persist for future operations
 
@@ -533,17 +556,31 @@ def store_3Dplot_data(
     for field in fields:
         for time in times:
             coordinates = []
-            field_values = []
+            observations = []
+            predictions = []
+            base_field = field.removeprefix(f"{MetricNames.NRE}_")
             for point in dataset.points:
-                try:
-                    field_values.append(point[field, time])
-                    coordinates.append(point.coordinates)
-                except (KeyError, TypeError):
+                reference_point = reference_dataset.get_point_by_coordinates(
+                    point.coordinates
+                )
+                if reference_point is None:
                     continue
+                try:
+                    observation = float(reference_point[base_field, 0])
+                    prediction = float(point[base_field, time])
+                except (KeyError, TypeError, ValueError):
+                    continue
+                coordinates.append(point.coordinates)
+                observations.append(observation)
+                predictions.append(prediction)
 
-            if not field_values:
+            if not coordinates:
                 logger.warning(f"Field {field} not found in dataset at time {time}")
                 continue
+
+            field_values = 100.0 * _compute_relative_errors(observations, predictions)
+            undefined = array(observations, dtype=float) == 0.0
+            above_threshold = (~undefined) & (field_values > relative_error_threshold)
 
             # Store scatter objects and tags for future operations
             label = f"{field} @ {time}"
@@ -554,11 +591,40 @@ def store_3Dplot_data(
                 dataset.source
             )
             data_storage['fields_values'].append(
-                safe_array_conversion(field_values)
+                array(field_values, dtype=float)
             )
             data_storage['coordinates'].append(
                 safe_array_conversion(coordinates)
             )
+            data_storage['observations'].append(array(observations, dtype=float))
+            data_storage['predictions'].append(array(predictions, dtype=float))
+            data_storage['above_threshold'].append(above_threshold)
+            data_storage['undefined'].append(undefined)
+
+
+def _format_relative_error_hover(
+    label: str,
+    coordinates,
+    prediction: float,
+    observation: float,
+    relative_error: Optional[float],
+    above_threshold: bool = False,
+    undefined: bool = False,
+) -> str:
+    """Format hover information for one relative-error point."""
+    if undefined:
+        status = "Relative error undefined (zero observation)"
+    else:
+        status = f"Relative error: {relative_error:.3f}%"
+        if above_threshold:
+            status += "\nRelative error above threshold"
+    return (
+        f"{label}\n"
+        f"Point: {coordinates}\n"
+        f"Predicted: {prediction:g}\n"
+        f"Observed: {observation:g}\n"
+        f"{status}"
+    )
 
 
 def create_3Dplot(
@@ -621,8 +687,13 @@ def create_3Dplot(
         except Exception as e:
             logger.warning(f"Could not load STL: {e}")
 
-    def _format_3d_axes(ax3d: Axes, scatter, label: str, values: ndarray,
-                        coords: ndarray, title: str) -> None:
+    def _format_3d_axes(
+        ax3d: Axes,
+        scatter,
+        coords: ndarray,
+        title: str,
+        colorbar_label: str,
+    ) -> None:
         """ Format the 3D axes with labels, limits, and colorbar. """
 
         ax3d.set_title(title, fontsize=14,
@@ -649,26 +720,15 @@ def create_3Dplot(
             azim=PlotConstants.PLOT3D_AZ
         )
 
-        ax3d.figure.colorbar(
-            scatter,
-            ax=ax3d,
-            label=label,
-            shrink=0.50,
-            aspect=20,
-            pad=0.10
-        )
-
-        cur = cursor(scatter, hover=True)
-
-        @cur.connect("add")
-        def _on_add(sel) -> None:
-            sel.annotation.set_text(
-                f"{label}\n"
-                f"Point: {sel.index} at {coords[sel.index]}\n"
-                f"Value: {values[sel.index]:.3f}"
+        if scatter is not None:
+            ax3d.figure.colorbar(
+                scatter,
+                ax=ax3d,
+                label=colorbar_label,
+                shrink=0.50,
+                aspect=20,
+                pad=0.10
             )
-            sel.annotation.get_bbox_patch().set_facecolor("tab:blue")
-            sel.annotation.get_bbox_patch().set_alpha(0.4)
 
 
     def _plot_figure(
@@ -676,6 +736,10 @@ def create_3Dplot(
             labels_group,
             sources_group,
             coords_group,
+            observations_group,
+            predictions_group,
+            above_threshold_group,
+            undefined_group,
             idx,
             field_minmax,
     ) -> None:
@@ -689,8 +753,25 @@ def create_3Dplot(
 
         grid = GridSpec(rows, ncols, figure=fig)
 
-        for i, (values, label, source, coords) in enumerate(
-                zip(slabs_group, labels_group, sources_group, coords_group)):
+        for i, (
+            values,
+            label,
+            source,
+            coords,
+            observations,
+            predictions,
+            above_threshold,
+            undefined,
+        ) in enumerate(zip(
+            slabs_group,
+            labels_group,
+            sources_group,
+            coords_group,
+            observations_group,
+            predictions_group,
+            above_threshold_group,
+            undefined_group,
+        )):
             # Get position in the grid and create 3D subplot
             row, col = divmod(i, ncols)
             ax3d = fig.add_subplot(grid[row, col], projection="3d")
@@ -698,18 +779,92 @@ def create_3Dplot(
             # Retrieve the min and max values for the color scale
             field_name = label.split("@")[0].strip() # BAD: Linked to how is stored
             vmin, vmax = field_minmax.get(field_name, (None, None))
-
-            # Add scatter object to the 3D axes
-            scatter = ax3d.scatter(
-                coords[:, 0], coords[:, 1], coords[:, 2],
-                c=values,
-                cmap=PlotConstants.PLOT3D_CMAP,
-                marker="o",
-                vmin=vmin,
-                vmax=vmax,
+            field_label, time_label = (
+                part.strip() for part in label.rsplit("@", 1)
+            )
+            plotted_field = field_label.removeprefix(f"{MetricNames.NRE}_")
+            colorbar_label = (
+                f"Relative error for {plotted_field} [%] @ {time_label}"
             )
 
-            _format_3d_axes(ax3d, scatter, label, values, coords, source)
+            valid_mask = (~above_threshold) & (~undefined) & np_isfinite(values)
+            valid_indices = [idx for idx, valid in enumerate(valid_mask) if valid]
+            artists = []
+            scatter = None
+            if valid_indices:
+                scatter = ax3d.scatter(
+                    coords[valid_mask, 0],
+                    coords[valid_mask, 1],
+                    coords[valid_mask, 2],
+                    c=values[valid_mask],
+                    cmap=PlotConstants.PLOT3D_CMAP,
+                    marker="o",
+                    vmin=vmin,
+                    vmax=vmax,
+                )
+                setattr(scatter, "_p4v_hover_texts", [
+                    _format_relative_error_hover(
+                        label,
+                        coords[index],
+                        predictions[index],
+                        observations[index],
+                        values[index],
+                        False,
+                    )
+                    for index in valid_indices
+                ])
+                artists.append(scatter)
+
+            for excluded_mask, excluded_label, is_above, is_undefined in (
+                (above_threshold, "Relative error above threshold", True, False),
+                (undefined, "Relative error undefined", False, True),
+            ):
+                excluded_indices = [
+                    index for index, excluded in enumerate(excluded_mask) if excluded
+                ]
+                if not excluded_indices:
+                    continue
+                excluded = ax3d.scatter(
+                    coords[excluded_mask, 0],
+                    coords[excluded_mask, 1],
+                    coords[excluded_mask, 2],
+                    color=PlotConstants.PLOT3D_EXCLUDED_COLOR,
+                    marker="o",
+                    label=excluded_label,
+                )
+                setattr(excluded, "_p4v_hover_texts", [
+                    _format_relative_error_hover(
+                        label,
+                        coords[index],
+                        predictions[index],
+                        observations[index],
+                        values[index],
+                        above_threshold=is_above,
+                        undefined=is_undefined,
+                    )
+                    for index in excluded_indices
+                ])
+                artists.append(excluded)
+            if any(above_threshold) or any(undefined):
+                ax3d.legend()
+
+            _format_3d_axes(
+                ax3d,
+                scatter,
+                coords,
+                source,
+                colorbar_label,
+            )
+
+            if artists:
+                cur = cursor(artists, hover=True)
+
+                @cur.connect("add")
+                def _on_add(sel) -> None:
+                    texts = getattr(sel.artist, "_p4v_hover_texts")
+                    sel.annotation.set_text(texts[sel.index])
+                    sel.annotation.get_bbox_patch().set_facecolor("tab:blue")
+                    sel.annotation.get_bbox_patch().set_alpha(0.4)
 
             if geometry:
                 _add_geometry(ax3d, geometry)
@@ -745,13 +900,20 @@ def create_3Dplot(
     labels: List[str] = data_storage["labels"]
     slabs: List[ndarray] = data_storage["fields_values"]
     sources: List[str] = data_storage["sources"]
+    observations: List[ndarray] = data_storage["observations"]
+    predictions: List[ndarray] = data_storage["predictions"]
+    above_threshold: List[ndarray] = data_storage["above_threshold"]
+    undefined: List[ndarray] = data_storage["undefined"]
 
     # Compute global vmin/vmax per field
     field_minmax = {}
-    for lbl, vals in zip(labels, slabs):
+    for lbl, vals, above, missing in zip(labels, slabs, above_threshold, undefined):
         field = lbl.split("@")[0].strip() #BAD
-        cur_min = float(np_min(vals))
-        cur_max = float(np_max(vals))
+        valid_values = vals[(~above) & (~missing) & np_isfinite(vals)]
+        if not len(valid_values):
+            continue
+        cur_min = 0.0
+        cur_max = float(np_max(valid_values))
         if field in field_minmax:
             prev_min, prev_max = field_minmax[field]
             field_minmax[field] = (
@@ -779,11 +941,19 @@ def create_3Dplot(
         group_labels = labels[i:i + subplots_per_fig]
         group_sources = sources[i:i + subplots_per_fig]
         group_coordinates = coordinates[i:i + subplots_per_fig]
+        group_observations = observations[i:i + subplots_per_fig]
+        group_predictions = predictions[i:i + subplots_per_fig]
+        group_above_threshold = above_threshold[i:i + subplots_per_fig]
+        group_undefined = undefined[i:i + subplots_per_fig]
         _plot_figure(
             group_slabs,
             group_labels,
             group_sources,
             group_coordinates,
+            group_observations,
+            group_predictions,
+            group_above_threshold,
+            group_undefined,
             i // subplots_per_fig,
             field_minmax,
         )

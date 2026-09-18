@@ -159,7 +159,7 @@ def compute_metrics(
     dataset_from_exp: DataSet,
     dataset_from_sim: DataSet,
     time_values: Optional[KeysView[float]] = None,
-    fields: Optional[List[str]] = None
+    fields: Optional[List[str]] = None,
 ) -> Dict[str, Dict[float, Dict[str, float]]]:
     """
     Compute statistical metrics for comparing experiment and simulation 
@@ -176,7 +176,8 @@ def compute_metrics(
             "GV":   {time1: {...}, time2: {...}, ...},
         }
 
-    Store pointwise relative errors where the experimental reference is nonzero.
+    Store pointwise relative errors for nonzero observations. Zero observations
+    have undefined relative errors and remain included in RMSE.
     
     Parameters
     ----------
@@ -281,15 +282,18 @@ def compute_metrics(
                 predictions = safe_array_conversion(predictions)
                 relative_errors = _compute_relative_errors(experiment, predictions)
                 valid_errors = isfinite(relative_errors)
+                relative_error_field = f"{MetricNames.NRE}_{f}"
+                dataset_from_sim.fields[relative_error_field] = None
                 if any(experiment == 0):
                     logger.warning(
-                        f"Omitting relative errors for zero experimental values "
-                        f"in field {f} at time {t}; these points remain in RMSE."
+                        "Relative error undefined for zero observations "
+                        f"in field {f} at time "
+                        f"{t}; these points remain in RMSE."
                     )
                 if any(valid_errors):
                     store_individual_contribution(
                         dataset_from_sim,
-                        f"{MetricNames.NRE}_{f}",
+                        relative_error_field,
                         t,
                         relative_errors[valid_errors],
                         point_coordinates=[
@@ -340,7 +344,7 @@ def compute_metrics(
 
 def _compute_relative_errors(
     experiment: Union[List, ndarray],
-    predictions: Union[List, ndarray]
+    predictions: Union[List, ndarray],
 ) -> ndarray:
     """
     Compute relative error contributions for each point.
@@ -352,7 +356,7 @@ def _compute_relative_errors(
     
     Returns
     -------
-    ndarray: relative errors, with NaN where the experimental reference is zero
+    ndarray: relative errors, with NaN for zero observations
     
     Raises
     ------
@@ -365,7 +369,8 @@ def _compute_relative_errors(
         raise ValueError("Size mismatch between experiment and predictions")
     contributions = divide(
         npabs(experiment - predictions), npabs(experiment),
-        out=full_like(experiment, float("nan")), where=experiment != 0,
+        out=full_like(experiment, float("nan")),
+        where=experiment != 0,
     )
 
     return contributions

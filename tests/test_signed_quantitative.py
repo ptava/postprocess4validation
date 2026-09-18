@@ -91,7 +91,7 @@ def test_csv_comparison_retains_signed_relative_error_plot_data(tmp_path):
     )
     assert set(results["comparison"]) == {"RMSE"}
     assert storage_2d["all_scatter_args"] == []
-    assert storage_3d["fields_values"][0].tolist() == [1, 0]
+    assert storage_3d["fields_values"][0].tolist() == [100, 0]
     assert "RMSE-u" in (tmp_path / "statistics.csv").read_text()
 
 
@@ -110,15 +110,19 @@ def test_csv_repeats_header_when_returning_to_an_earlier_metric_set(tmp_path):
     ]
 
 
-def test_zero_reference_is_excluded_only_from_relative_error(caplog):
+def test_zero_reference_is_marked_but_excluded_from_relative_error(caplog):
     experiment, simulation = datasets([-1, 0, 1], [-2, 3, 1])
     results = computations.compute_metrics(experiment, simulation)
     assert results["RMSE"][0.0]["u"] == pytest.approx(np.sqrt(10 / 3))
     storage = define_3Dplot_storage(simulation)
-    store_3Dplot_data(simulation, storage)
-    assert storage["coordinates"][0].tolist() == [[0, 0, 0], [2, 0, 0]]
-    assert storage["fields_values"][0].tolist() == [1, 0]
-    assert "zero" in caplog.text.lower()
+    store_3Dplot_data(simulation, storage, reference_dataset=experiment)
+    assert storage["coordinates"][0].tolist() == [
+        [0, 0, 0], [1, 0, 0], [2, 0, 0]
+    ]
+    assert storage["fields_values"][0][[0, 2]].tolist() == [100, 0]
+    assert np.isnan(storage["fields_values"][0][1])
+    assert storage["undefined"][0].tolist() == [False, True, False]
+    assert "undefined" in caplog.text.lower()
 
 
 def test_mixed_fields_and_times_write_aligned_csv(tmp_path):
@@ -148,7 +152,7 @@ def test_mixed_fields_and_times_write_aligned_csv(tmp_path):
 @pytest.mark.parametrize("observed,predicted,has_plot", [
     ([-1, 1], [-2, 1], True),
     ([-1, 0, 1], [-2, 3, 1], True),
-    ([0, 0], [-1, 1], False),
+    ([0, 0], [-1, 1], True),
 ])
 def test_signed_cli_writes_rmse_and_available_error_plot(
     tmp_path, monkeypatch, observed, predicted, has_plot,

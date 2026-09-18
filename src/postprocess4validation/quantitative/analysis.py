@@ -15,6 +15,7 @@ from .visualization import store_2Dplot_data, store_3Dplot_data
 from .utils import (
     logger,
     FilePaths,
+    ValidationConstants,
 )
 
 def run_datasets_comparison(
@@ -26,6 +27,7 @@ def run_datasets_comparison(
     data_paths: List[Path],
     digits: int = DefaultValues.DIGITS,
     write_output: bool = True,
+    relative_error_threshold: float = ValidationConstants.RELATIVE_ERROR_THRESHOLD,
 ) -> Dict[str, Dict[str, Dict[float, Dict[str, float]]]]:
     """
     Compare additional experiment datasets against a reference dataset.
@@ -40,6 +42,8 @@ def run_datasets_comparison(
     data_paths (List[Path]): Paths to additional experiment datasets
     digits (int): Number of decimal places for metrics values in the output file
     write_output (bool): If True, write metrics to the output file
+    relative_error_threshold (float): Upper relative-error percentage included in
+        the 3D color scale
 
     Returns
     -------
@@ -57,7 +61,13 @@ def run_datasets_comparison(
             if write_output:
                 write_metrics(output_file, compare_dataset.source, results, True, digits)
             store_2Dplot_data(data_storage_2D, compare_dataset.source, results, True)
-            store_3Dplot_data(compare_dataset, data_storage_3D, True)
+            store_3Dplot_data(
+                compare_dataset,
+                data_storage_3D,
+                True,
+                reference_dataset=ref_dataset,
+                relative_error_threshold=relative_error_threshold,
+            )
             results_by_source[compare_dataset.source] = results
         except Exception as e:
             logger.error(
@@ -81,6 +91,7 @@ def run_quantitative_analysis(
     digits: int = DefaultValues.DIGITS,
     write_output: bool = True,
     probes_folder: str = FilePaths.PROBES_SUBFOLDER,
+    relative_error_threshold: float = ValidationConstants.RELATIVE_ERROR_THRESHOLD,
 ) -> Dict:
     """
     Run quantitative analysis on simulation data.
@@ -108,6 +119,8 @@ def run_quantitative_analysis(
     digits (int): Number of decimal places for metrics values in the output file
     write_output (bool): If True, write metrics to the output file
     probes_folder (str): Name of the probes subfolder inside postProcessing.
+    relative_error_threshold (float): Upper relative-error percentage included in
+        the 3D color scale.
 
     Returns
     -------
@@ -169,7 +182,13 @@ def run_quantitative_analysis(
 
     try:
         logger.info("Creating 3D subplot")
-        store_3Dplot_data(simulation_data, data_storage_3D, last_time_only)
+        store_3Dplot_data(
+            simulation_data,
+            data_storage_3D,
+            last_time_only,
+            reference_dataset=ref_dataset,
+            relative_error_threshold=relative_error_threshold,
+        )
 
     except Exception as e:
         logger.error(f"Failed to create 3D subplot: {e}")

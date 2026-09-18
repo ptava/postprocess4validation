@@ -27,7 +27,7 @@ class MetricNames:
     NMSE = "NMSE"  # Normalized Mean Squared Error
     MG = "MG"      # Mean Geometric Bias
     GV = "GV"      # Geometric Variance
-    NRE = "NRE"    # Normalised Relative Error
+    NRE = "NRE"    # Pointwise relative error (legacy internal field prefix)
 
     @classmethod
     def get_all(cls) -> List[str]:
@@ -47,7 +47,8 @@ class PlotConstants:
     PLOT3D_FIGMAXHEIGHT = 14 # Maximum height of the 3D plot
     PLOT3D_EL= 35.0 # Elevation
     PLOT3D_AZ = -135.0 # Azimuth
-    PLOT3D_CMAP = "RdBu_r"
+    PLOT3D_CMAP = "viridis"
+    PLOT3D_EXCLUDED_COLOR = "red"
     MAX_COLS = 3
     MAX_STL_FACES = 5000
 
@@ -63,6 +64,7 @@ class FilePaths:
 class ValidationConstants:
     """Constants used for validation."""
     ZERO_THRESHOLD = 1e-10  # Threshold for considering a value as zero
+    RELATIVE_ERROR_THRESHOLD = 200.0
 
 def safe_array_conversion(data: Any, dtype: Any = float) -> ndarray:
     """

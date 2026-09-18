@@ -117,6 +117,7 @@ def main() -> int:
                 data_paths=args.exp_data[1:],
                 digits=args.digits,
                 write_output=not args.no_save,
+                relative_error_threshold=args.relative_error_threshold,
             )
             has_results = bool(comparison_results)
 
@@ -155,6 +156,7 @@ def main() -> int:
                     time=args.time_folder,
                     start_time=args.start_time,
                     probes_folder=args.probes_folder,
+                    relative_error_threshold=args.relative_error_threshold,
                     digits=args.digits,
                     write_output=not args.no_save,
                 )

@@ -88,15 +88,15 @@ $$
 NMSE = \frac{1}{n} \sum_{i=1}^n \frac{(O_i - P_i)^2}{\overline{O} \overline{P}}
 $$
 
-#### <u>Normalised relative error</u> ($NRE_i$)
+#### <u>Relative error</u> ($RE_i$)
 
-A local measure of the relative difference between predicted and observed values, computed at each spatial point $i$.  Used for visualisation purposes (e.g. 3D error plots).  
+A local measure of the relative difference between predicted and observed values, computed at each spatial point $i$. It is displayed as a percentage in the 3D error plots.
 
 $$
-    NRE_i = \left| \frac{P_i - O_i}{O_i} \right|
+    RE_i = \frac{\left|P_i - O_i\right|}{\left|O_i\right|}
 $$
 
-Negative reference values are supported. When $O_i=0$, relative error is undefined: the point is omitted from relative-error plots with a warning, but remains included in RMSE. If every reference is zero, no relative-error plot is generated. MG and GV require strictly positive inputs; NMSE also requires nonzero means. The existing `--no-save` option suppresses both statistics and plot files.
+Negative reference values are supported. The 3D plot displays relative error as a percentage, $100\,|P_i-O_i|/|O_i|$. Errors above `200%` are shown as red markers and excluded from the color scale; change this percentage cutoff with `--relative-error-threshold`. Errors equal to the cutoff remain colored. The legend displays "Relative error above threshold" only when such points exist. For exactly zero observations, relative error is undefined: these points are red with a separate "Relative error undefined" legend entry when present. Hover information reports predicted and observed values for every point, along with the computed percentage or undefined status. The cutoff affects only the plot; computed errors and RMSE remain unaffected. MG and GV require strictly positive inputs; NMSE also requires nonzero means. The existing `--no-save` option suppresses both statistics and plot files.
 
 ## 2. Qualitative analysis
 - Detects and plots lines and planes based on point-wise experimental data and OpenFOAM lines sampling
@@ -183,6 +183,9 @@ quantitative-cli --exp path/to/expData.csv --start-time 500
 
 # Read probe data from a custom postProcessing subfolder (default: probes)
 quantitative-cli --exp path/to/expData.csv --probes-folder wakeProbes
+
+# Change the upper relative-error percentage included in the 3D color scale
+quantitative-cli --exp path/to/expData.csv --relative-error-threshold 300
 
 # Use a predefined color sequence for the comparative 2D plot
 quantitative-cli --exp path/to/expData.csv --colors tab:blue tab:orange "#2ca02c"

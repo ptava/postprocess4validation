@@ -89,7 +89,7 @@ def main() -> int:
 
 
         if args.no_save:
-            logger.info("No-save mode enabled; skipping statistics file output.")
+            logger.info("No-save mode enabled; printing statistics to stdout.")
         else:
             logger.info(f"Initializing output file {statistics_file}")
             initialise_metrics_file(

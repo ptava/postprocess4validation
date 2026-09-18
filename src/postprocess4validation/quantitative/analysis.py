@@ -41,7 +41,8 @@ def run_datasets_comparison(
     data_storage_3D (Dict[str, Any]): Storage used for 3D plotting
     data_paths (List[Path]): Paths to additional experiment datasets
     digits (int): Number of decimal places for metrics values in the output file
-    write_output (bool): If True, write metrics to the output file
+    write_output (bool): If True, write metrics to the output file; otherwise print
+        them to stdout
     relative_error_threshold (float): Upper relative-error percentage included in
         the 3D color scale
 
@@ -58,8 +59,10 @@ def run_datasets_comparison(
             compare_dataset: DataSet = compare_loader.load(data_path)
             results = compute_metrics(ref_dataset, compare_dataset)
 
-            if write_output:
-                write_metrics(output_file, compare_dataset.source, results, True, digits)
+            write_metrics(
+                output_file if write_output else None,
+                compare_dataset.source, results, True, digits,
+            )
             store_2Dplot_data(data_storage_2D, compare_dataset.source, results, True)
             store_3Dplot_data(
                 compare_dataset,
@@ -117,7 +120,8 @@ def run_quantitative_analysis(
         folder is used
     start_time (Optional[float]): Minimum simulation sample time to include.
     digits (int): Number of decimal places for metrics values in the output file
-    write_output (bool): If True, write metrics to the output file
+    write_output (bool): If True, write metrics to the output file; otherwise print
+        them to stdout
     probes_folder (str): Name of the probes subfolder inside postProcessing.
     relative_error_threshold (float): Upper relative-error percentage included in
         the 3D color scale.
@@ -164,13 +168,16 @@ def run_quantitative_analysis(
         raise ValueError(f"Failed to compute metrics: {e}")
 
     # Write to output file
-    if write_output:
-        try:
+    try:
+        if write_output:
             logger.info(f"Writing metrics to {output_file}")
-            write_metrics(output_file, simulation_data.source, results, last_time_only, digits)
-        except Exception as e:
-            logger.error(f"Failed to write metrics to file: {e}")
-            raise ValueError(f"Failed to write metrics to file: {e}")
+        write_metrics(
+            output_file if write_output else None,
+            simulation_data.source, results, last_time_only, digits,
+        )
+    except Exception as e:
+        logger.error(f"Failed to output metrics: {e}")
+        raise ValueError(f"Failed to output metrics: {e}")
 
     # Fill the plot with the relevant computed metrics
     try:

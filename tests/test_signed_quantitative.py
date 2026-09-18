@@ -182,3 +182,45 @@ def test_signed_cli_writes_rmse_and_available_error_plot(
             assert plots[0].stat().st_size > 1000
     finally:
         plt.close("all")
+
+
+@pytest.mark.parametrize("single", [True, False])
+def test_no_save_cli_prints_statistics_without_writing_files(
+    tmp_path, monkeypatch, capsys, single,
+):
+    probes = tmp_path / "case" / "postProcessing" / "probes" / "0"
+    probes.mkdir(parents=True)
+    (probes / "u").write_text(
+        "# Probe 0 (0 0 0)\n# Probe 1 (1 0 0)\n1 -1 1\n2 -2 1\n"
+    )
+    experiment = tmp_path / "experiment.csv"
+    experiment.write_text("x,y,z,u(m/s)\n0,0,0,-1\n1,0,0,1\n")
+    comparison = tmp_path / "comparison.csv"
+    comparison.write_text("x,y,z,u(m/s)\n0,0,0,-2\n1,0,0,1\n")
+    output = tmp_path / "output"
+    output.mkdir()
+    monkeypatch.chdir(tmp_path)
+    argv = [
+        "quantitative-cli", "--exp-data", str(experiment), str(comparison),
+        "--output-dir", str(output), "--no-save", "--digits", "3",
+    ]
+    if single:
+        argv.extend(["--single", str(probes.parent.parent)])
+    monkeypatch.setattr(sys, "argv", argv)
+    try:
+        assert main() == 0
+        printed = capsys.readouterr().out
+        assert "Statistics for comparison" in printed
+        assert "comparison,0.707" in printed
+        assert "Statistics for case" in printed
+        assert "Id,RMSE-u" in printed
+        if single:
+            assert "1.0,0.0" in printed
+            assert "2.0,0.707" in printed
+        else:
+            assert "case,0.707" in printed
+            assert "1.0,0.0" not in printed
+        assert all(metric not in printed for metric in ("NMSE", "MG", "GV"))
+        assert list(output.iterdir()) == []
+    finally:
+        plt.close("all")

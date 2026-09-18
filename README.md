@@ -175,7 +175,7 @@ quantitative-cli --exp path/to/expData.csv --include caseA caseC
 # Save plot without displaying
 quantitative-cli --exp path/to/expData.csv --save-only
 
-# Run without writing statistics or plot files
+# Print statistics on screen without writing statistics or plot files
 quantitative-cli --exp path/to/expData.csv --no-save
 
 # Ignore samples before a simulation time

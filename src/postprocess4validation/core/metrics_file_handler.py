@@ -4,6 +4,7 @@ from csv import reader, writer
 from getpass import getuser
 from importlib import metadata
 from pathlib import Path
+import sys
 
 from .exceptions import MetricsFileError
 from .utils import logger, Info, DefaultValues
@@ -76,7 +77,7 @@ def initialise_metrics_file(
 
 
 def write_metrics(
-    path: Path,
+    path: Optional[Path],
     identifier: str, 
     metrics_dict: Dict,
     last_time_only: bool = False,
@@ -86,7 +87,7 @@ def write_metrics(
     Appends computed statistical metrics to an existing table or creates a new 
     one if needed.
 
-    :param path: Path to the CSV file where the table will be stored.
+    :param path: Path to the CSV file, or None to print the table to stdout.
     :param metrics_dict: Dictionary of statistical metrics with time steps and fields.
     """
     if not metrics_dict:
@@ -125,6 +126,14 @@ def write_metrics(
     except (KeyError, TypeError, ValueError, IndexError) as e:
         logger.error(f"Error processing metrics data: {e}")
         raise MetricsFileError(f"Error processing metrics dictionary: {e}")
+
+    if path is None:
+        print(f"Statistics for {identifier}")
+        stdout_writer = writer(sys.stdout, lineterminator="\n")
+        stdout_writer.writerow(table_header)
+        stdout_writer.writerows(data_rows)
+        print()
+        return
 
     try:
         with open(path, "a", newline="") as file:

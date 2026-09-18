@@ -197,7 +197,7 @@ def parser() -> Namespace:
         "--no-save",
         action="store_true",
         default=False,
-        help="Do not write output files automatically."
+        help="Print statistics to stdout without writing statistics or plot files."
     )
     
     parser.add_argument(
